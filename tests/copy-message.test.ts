@@ -37,7 +37,7 @@ const press = (state: CopyMessagePickerState, keys: string) => {
 };
 
 const registrations = captureRegisteredCommands();
-assert.deepEqual([...registrations.keys()], ["copy-user", "copy-message"]);
+assert.deepEqual([...registrations.keys()], ["copy-message", "copy-user"]);
 assert.equal(registrations.get("copy-user")?.description, "Copy the most recent user message to the clipboard");
 assert.equal(typeof registrations.get("copy-user")?.handler, "function");
 assert.equal(registrations.get("copy-message")?.description, "Select a session message and copy its raw text to the clipboard");

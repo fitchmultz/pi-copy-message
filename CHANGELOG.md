@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 - 2026-06-07
+
+- Register `/copy-message` before `/copy-user` so package command autocomplete prefers the picker over the shortcut.
+
 ## 1.0.2 - 2026-06-07
 
 - Add `/copy-user` shortcut for copying the most recent user message directly.

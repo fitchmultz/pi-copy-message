@@ -470,13 +470,6 @@ function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionMa
 }
 
 export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCommand">) {
-	pi.registerCommand("copy-user", {
-		description: "Copy the most recent user message to the clipboard",
-		handler: async (_args, ctx) => {
-			copyMostRecentUserMessage(ctx);
-		},
-	});
-
 	pi.registerCommand("copy-message", {
 		description: "Select a session message and copy its raw text to the clipboard",
 		handler: async (args, ctx) => {
@@ -502,6 +495,13 @@ export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCom
 			if (!selected) return;
 
 			copySelectedMessage(ctx, selected);
+		},
+	});
+
+	pi.registerCommand("copy-user", {
+		description: "Copy the most recent user message to the clipboard",
+		handler: async (_args, ctx) => {
+			copyMostRecentUserMessage(ctx);
 		},
 	});
 }
