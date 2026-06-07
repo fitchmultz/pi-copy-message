@@ -1,7 +1,7 @@
 {
   "name": "pi-copy-message",
-  "version": "1.0.0",
-  "description": "pi extension that adds /copy-message for copying raw session messages with role filters and search",
+  "version": "1.0.1",
+  "description": "Pi extension with a searchable TUI picker for copying raw session messages",
   "author": "Mitch Fultz (https://github.com/fitchmultz)",
   "license": "MIT",
   "type": "module",
@@ -14,8 +14,12 @@
     "pi-extension",
     "extension",
     "clipboard",
+    "copy-message",
     "copy",
+    "session-messages",
+    "slash-command",
     "tui",
+    "search",
     "typescript"
   ],
   "repository": {

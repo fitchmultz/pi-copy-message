@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 - 2026-06-07
+
+- Improve npm package description and keywords.
+- Add GitHub repository description and topics.
+
 ## 1.0.0 - 2026-06-07
 
 Initial release.
