@@ -86,29 +86,65 @@ function formatTime(timestamp: unknown): string {
 	return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
-export function collectCopyableMessages(ctx: { sessionManager: { getBranch(): unknown[] } }): CopyableMessage[] {
-	const messages: CopyableMessage[] = [];
+function entryToCopyableMessage(entry: unknown): CopyableMessage | undefined {
+	if (entry === null || typeof entry !== "object") return undefined;
+	const record = entry as Record<string, unknown>;
+	if (record.type !== "message") return undefined;
+	if (record.message === null || typeof record.message !== "object") return undefined;
 
-	for (const entry of ctx.sessionManager.getBranch()) {
+	const message = record.message as Record<string, unknown>;
+	const role = typeof message.role === "string" ? message.role : "message";
+	const text = textFromMessage(message);
+	if (!text.trim()) return undefined;
+
+	return {
+		id: typeof record.id === "string" ? record.id : "unknown",
+		role,
+		timestamp: typeof record.timestamp === "string" ? record.timestamp : undefined,
+		text,
+	};
+}
+
+export function collectCopyableMessages(ctx: { sessionManager: { getBranch(): unknown[] } }): CopyableMessage[] {
+	return ctx.sessionManager.getBranch().flatMap((entry) => {
+		const message = entryToCopyableMessage(entry);
+		return message ? [message] : [];
+	});
+}
+
+export type MostRecentUserMessageResult =
+	| { kind: "message"; message: CopyableMessage }
+	| { kind: "no-user-message" }
+	| { kind: "no-text" };
+
+export function getMostRecentUserMessage(ctx: { sessionManager: { getBranch(): unknown[] } }): MostRecentUserMessageResult {
+	const branch = ctx.sessionManager.getBranch();
+
+	for (let i = branch.length - 1; i >= 0; i--) {
+		const entry = branch[i];
 		if (entry === null || typeof entry !== "object") continue;
 		const record = entry as Record<string, unknown>;
 		if (record.type !== "message") continue;
 		if (record.message === null || typeof record.message !== "object") continue;
 
 		const message = record.message as Record<string, unknown>;
-		const role = typeof message.role === "string" ? message.role : "message";
-		const text = textFromMessage(message);
-		if (!text.trim()) continue;
+		if (message.role !== "user") continue;
 
-		messages.push({
-			id: typeof record.id === "string" ? record.id : "unknown",
-			role,
-			timestamp: typeof record.timestamp === "string" ? record.timestamp : undefined,
-			text,
-		});
+		const text = textFromMessage(message);
+		if (!text.trim()) return { kind: "no-text" };
+
+		return {
+			kind: "message",
+			message: {
+				id: typeof record.id === "string" ? record.id : "unknown",
+				role: "user",
+				timestamp: typeof record.timestamp === "string" ? record.timestamp : undefined,
+				text,
+			},
+		};
 	}
 
-	return messages;
+	return { kind: "no-user-message" };
 }
 
 function commandExists(command: string): boolean {
@@ -419,7 +455,28 @@ function copySelectedMessage(ctx: Pick<ExtensionCommandContext, "ui">, selected:
 	ctx.ui.notify(`Copied ${roleLabel(selected.role)} message`, "info");
 }
 
+function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionManager" | "ui">) {
+	const result = getMostRecentUserMessage(ctx);
+	if (result.kind === "no-user-message") {
+		ctx.ui.notify("No user messages found", "warning");
+		return;
+	}
+	if (result.kind === "no-text") {
+		ctx.ui.notify("The most recent user message has no text to copy", "warning");
+		return;
+	}
+
+	copySelectedMessage(ctx, result.message);
+}
+
 export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCommand">) {
+	pi.registerCommand("copy-user", {
+		description: "Copy the most recent user message to the clipboard",
+		handler: async (_args, ctx) => {
+			copyMostRecentUserMessage(ctx);
+		},
+	});
+
 	pi.registerCommand("copy-message", {
 		description: "Select a session message and copy its raw text to the clipboard",
 		handler: async (args, ctx) => {

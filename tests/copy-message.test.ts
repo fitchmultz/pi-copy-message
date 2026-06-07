@@ -7,26 +7,22 @@ import extension, {
 	CopyMessagePickerState,
 	type CopyableMessage,
 	filteredMessages,
+	getMostRecentUserMessage,
 	latestDefaultMessage,
 } from "../extensions/copy-message.ts";
 
 type CommandOptions = Parameters<ExtensionAPI["registerCommand"]>[1];
 
-const captureRegisteredCommand = () => {
-	let registeredName: string | undefined;
-	let registeredOptions: CommandOptions | undefined;
+const captureRegisteredCommands = () => {
+	const commands = new Map<string, CommandOptions>();
 	const pi: Pick<ExtensionAPI, "registerCommand"> = {
 		registerCommand: (name, options) => {
-			registeredName = name;
-			registeredOptions = options;
+			commands.set(name, options);
 		},
 	};
 
 	extension(pi);
-
-	assert.equal(registeredName, "copy-message");
-	assert.ok(registeredOptions);
-	return registeredOptions;
+	return commands;
 };
 
 const copyableMessage = (id: string, role: string, text: string, minute: number): CopyableMessage => ({
@@ -40,30 +36,58 @@ const press = (state: CopyMessagePickerState, keys: string) => {
 	for (const key of keys) state.handleInput(key);
 };
 
-const registration = captureRegisteredCommand();
-assert.equal(registration.description, "Select a session message and copy its raw text to the clipboard");
-assert.equal(typeof registration.handler, "function");
+const registrations = captureRegisteredCommands();
+assert.deepEqual([...registrations.keys()], ["copy-user", "copy-message"]);
+assert.equal(registrations.get("copy-user")?.description, "Copy the most recent user message to the clipboard");
+assert.equal(typeof registrations.get("copy-user")?.handler, "function");
+assert.equal(registrations.get("copy-message")?.description, "Select a session message and copy its raw text to the clipboard");
+assert.equal(typeof registrations.get("copy-message")?.handler, "function");
+
+const mixedBranch = {
+	sessionManager: {
+		getBranch: () => [
+			{ type: "message", id: "u0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "user", content: "raw user text" } },
+			{
+				type: "message",
+				id: "a0",
+				timestamp: "2026-06-07T00:01:00.000Z",
+				message: { role: "assistant", content: [{ type: "text", text: "raw assistant text" }] },
+			},
+			{ type: "message", id: "empty", timestamp: "2026-06-07T00:02:00.000Z", message: { role: "assistant", content: "   " } },
+			{ type: "custom", id: "ignored" },
+		],
+	},
+};
+
+assert.deepEqual(collectCopyableMessages(mixedBranch), [
+	{ id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "raw user text" },
+	{ id: "a0", role: "assistant", timestamp: "2026-06-07T00:01:00.000Z", text: "raw assistant text" },
+]);
+
+assert.deepEqual(getMostRecentUserMessage(mixedBranch), {
+	kind: "message",
+	message: { id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "raw user text" },
+});
 
 assert.deepEqual(
-	collectCopyableMessages({
+	getMostRecentUserMessage({
 		sessionManager: {
 			getBranch: () => [
-				{ type: "message", id: "u0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "user", content: "raw user text" } },
-				{
-					type: "message",
-					id: "a0",
-					timestamp: "2026-06-07T00:01:00.000Z",
-					message: { role: "assistant", content: [{ type: "text", text: "raw assistant text" }] },
-				},
-				{ type: "message", id: "empty", timestamp: "2026-06-07T00:02:00.000Z", message: { role: "assistant", content: "   " } },
-				{ type: "custom", id: "ignored" },
+				{ type: "message", id: "u0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "user", content: "older text" } },
+				{ type: "message", id: "u1", timestamp: "2026-06-07T00:01:00.000Z", message: { role: "user", content: "   " } },
 			],
 		},
 	}),
-	[
-		{ id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "raw user text" },
-		{ id: "a0", role: "assistant", timestamp: "2026-06-07T00:01:00.000Z", text: "raw assistant text" },
-	],
+	{ kind: "no-text" },
+);
+
+assert.deepEqual(
+	getMostRecentUserMessage({
+		sessionManager: {
+			getBranch: () => [{ type: "message", id: "a0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "assistant", content: "reply" } }],
+		},
+	}),
+	{ kind: "no-user-message" },
 );
 
 {

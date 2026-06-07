@@ -1,12 +1,13 @@
 # pi copy-message extension
 
-A [pi](https://github.com/earendil-works/pi-mono) extension that adds `/copy-message`: a keyboard-first picker for copying raw session message text without terminal wrapping, padding, or rendered TUI artifacts.
+A [pi](https://github.com/earendil-works/pi-mono) extension that adds `/copy-message`: a keyboard-first picker for copying raw session message text without terminal wrapping, padding, or rendered TUI artifacts. It also adds `/copy-user` as a direct shortcut for the most recent user message.
 
 `pi-copy-message` supersedes [`pi-copy-user-message`](https://github.com/fitchmultz/pi-copy-user-message), which only copied the most recent user message.
 
 ## What it does
 
 - Adds `/copy-message`
+- Adds `/copy-user` for copying the most recent user message directly
 - Copies raw stored session message text, not rendered terminal lines
 - Shows messages in chat order: oldest at top, newest at bottom
 - Selects the newest visible message by default
@@ -48,6 +49,12 @@ Open the picker:
 
 ```text
 /copy-message
+```
+
+Copy the most recent user message directly:
+
+```text
+/copy-user
 ```
 
 Copy the latest visible default message directly:

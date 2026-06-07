@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 - 2026-06-07
+
+- Add `/copy-user` shortcut for copying the most recent user message directly.
+
 ## 1.0.1 - 2026-06-07
 
 - Improve npm package description and keywords.
