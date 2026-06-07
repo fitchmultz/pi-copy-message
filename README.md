@@ -1,0 +1,109 @@
+# pi copy-message extension
+
+A [pi](https://github.com/earendil-works/pi-mono) extension that adds `/copy-message`: a keyboard-first picker for copying raw session message text without terminal wrapping, padding, or rendered TUI artifacts.
+
+`pi-copy-message` supersedes [`pi-copy-user-message`](https://github.com/fitchmultz/pi-copy-user-message), which only copied the most recent user message.
+
+## What it does
+
+- Adds `/copy-message`
+- Copies raw stored session message text, not rendered terminal lines
+- Shows messages in chat order: oldest at top, newest at bottom
+- Selects the newest visible message by default
+- Supports role filters for user, assistant, and tool/bash messages
+- Hides tool/bash messages by default
+- Supports type-to-filter search across role, time, and message text
+- Supports Home/End jumps for oldest/newest visible messages
+- Includes fast paths: `/copy-message latest`, `/copy-message last`, and `/copy-message newest`
+
+## Install
+
+Install it from npm with pi:
+
+```bash
+pi install npm:pi-copy-message
+```
+
+Or install it directly from GitHub with pi:
+
+```bash
+pi install https://github.com/fitchmultz/pi-copy-message
+```
+
+Then reload pi from inside the app:
+
+```text
+/reload
+```
+
+If you prefer to load it directly from a local checkout during development:
+
+```bash
+pi -e ./extensions/copy-message.ts
+```
+
+## Usage
+
+Open the picker:
+
+```text
+/copy-message
+```
+
+Copy the latest visible default message directly:
+
+```text
+/copy-message latest
+```
+
+Aliases:
+
+```text
+/copy-message last
+/copy-message newest
+```
+
+## Keyboard controls
+
+| Key | Action |
+|---|---|
+| `↑` | Move to older visible message |
+| `↓` | Move to newer visible message |
+| `Home` | Jump to oldest visible message |
+| `End` | Jump to newest visible message |
+| Type text | Filter visible messages |
+| `Backspace` | Delete one search character |
+| `Ctrl+U` | Toggle user messages |
+| `Ctrl+A` | Toggle assistant messages |
+| `Ctrl+T` | Toggle tool/bash messages |
+| `Enter` | Copy selected raw message text |
+| `Esc` | Cancel |
+
+## Behavior notes
+
+- Entry IDs are hidden from the picker.
+- The picker caps visible rows and scrolls instead of filling the screen.
+- Search preserves your original selected message and restores it when the search is cleared.
+- Filter labels honor the active pi theme.
+- `/copy-message latest` respects default visibility: user and assistant messages are visible, tool/bash messages are hidden. If only hidden messages exist, it falls back to the newest message so the command still does something useful.
+- The command requires interactive TUI mode because the picker is a custom TUI component.
+
+## Compatibility
+
+- Tested with pi 0.78.1
+- Supported Node.js range for local repo tooling: `>=22.19.0`
+- `.nvmrc` pins Node 22.19.0 for local development
+
+This package keeps pi core packages as optional wildcard peers per current pi package guidance. Local development uses `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` as dev dependencies for typechecking and tests.
+
+## Development
+
+```bash
+npm install
+npm run check
+```
+
+Key files:
+
+- `extensions/copy-message.ts` — publishable extension implementation
+- `tests/copy-message.test.ts` — regression tests for command wiring, filtering, search, jumps, and clipboard behavior

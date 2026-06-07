@@ -1,0 +1,69 @@
+{
+  "name": "pi-copy-message",
+  "version": "1.0.0",
+  "description": "pi extension that adds /copy-message for copying raw session messages with role filters and search",
+  "author": "Mitch Fultz (https://github.com/fitchmultz)",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "extension",
+    "clipboard",
+    "copy",
+    "tui",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fitchmultz/pi-copy-message.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fitchmultz/pi-copy-message/issues"
+  },
+  "homepage": "https://github.com/fitchmultz/pi-copy-message#readme",
+  "scripts": {
+    "test": "tsx tests/copy-message.test.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm test && npm run typecheck",
+    "prepublishOnly": "npm run check && npm pack --dry-run"
+  },
+  "files": [
+    "extensions",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.78.1",
+    "@earendil-works/pi-tui": "^0.78.1",
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "basic-ftp": "6.0.1"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ]
+  },
+  "packageManager": "npm@11.16.0",
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    }
+  }
+}
