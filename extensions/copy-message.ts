@@ -1,8 +1,11 @@
 import { spawnSync } from "node:child_process";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 const MAX_VISIBLE_MESSAGES = 8;
+const MAX_PEEK_LINES = 16;
+
+export type CopyFormat = "raw" | "metadata";
 
 export interface CopyableMessage {
 	id: string;
@@ -52,10 +55,27 @@ function textFromMessage(message: Record<string, unknown>): string {
 	return textFromContent(message.content);
 }
 
+type SegmenterCtor = new (locale?: string, options?: { granularity?: "grapheme" }) => {
+	segment(input: string): Iterable<{ segment: string }>;
+};
+
+function splitGraphemes(text: string): string[] {
+	const Segmenter = (Intl as unknown as { Segmenter?: SegmenterCtor }).Segmenter;
+	if (!Segmenter) return Array.from(text);
+	return Array.from(new Segmenter(undefined, { granularity: "grapheme" }).segment(text), (part) => part.segment);
+}
+
+function truncateGraphemes(text: string, max: number): string {
+	if (max <= 0) return "";
+	const graphemes = splitGraphemes(text);
+	if (graphemes.length <= max) return text;
+	if (max === 1) return "…";
+	return `${graphemes.slice(0, max - 1).join("")}…`;
+}
+
 function compactPreview(text: string, max = 96): string {
-	const preview = text.replace(/\s+/g, " ").trim();
-	if (preview.length <= max) return preview;
-	return `${preview.slice(0, max - 1)}…`;
+	const preview = text.replace(/\s+/gu, " ").trim();
+	return truncateGraphemes(preview, max);
 }
 
 function roleLabel(role: string): string {
@@ -119,6 +139,7 @@ export type MostRecentUserMessageResult =
 
 export function getMostRecentUserMessage(ctx: { sessionManager: { getBranch(): unknown[] } }): MostRecentUserMessageResult {
 	const branch = ctx.sessionManager.getBranch();
+	let sawUserMessage = false;
 
 	for (let i = branch.length - 1; i >= 0; i--) {
 		const entry = branch[i];
@@ -130,8 +151,9 @@ export function getMostRecentUserMessage(ctx: { sessionManager: { getBranch(): u
 		const message = record.message as Record<string, unknown>;
 		if (message.role !== "user") continue;
 
+		sawUserMessage = true;
 		const text = textFromMessage(message);
-		if (!text.trim()) return { kind: "no-text" };
+		if (!text.trim()) continue;
 
 		return {
 			kind: "message",
@@ -144,12 +166,33 @@ export function getMostRecentUserMessage(ctx: { sessionManager: { getBranch(): u
 		};
 	}
 
-	return { kind: "no-user-message" };
+	return sawUserMessage ? { kind: "no-text" } : { kind: "no-user-message" };
 }
 
+type ClipboardCommand = {
+	name: string;
+	args: string[];
+	enabled: () => boolean;
+};
+
+const clipboardCommands: ClipboardCommand[] = [
+	{ name: "pbcopy", args: [], enabled: () => process.platform === "darwin" },
+	{ name: "termux-clipboard-set", args: [], enabled: () => Boolean(process.env.TERMUX_VERSION) },
+	{ name: "wl-copy", args: [], enabled: () => true },
+	{ name: "xclip", args: ["-selection", "clipboard"], enabled: () => true },
+	{ name: "xsel", args: ["--clipboard", "--input"], enabled: () => true },
+];
+
+const commandExistsCache = new Map<string, boolean>();
+
 function commandExists(command: string): boolean {
+	const cached = commandExistsCache.get(command);
+	if (cached !== undefined) return cached;
+
 	const result = spawnSync("sh", ["-c", "command -v \"$1\" >/dev/null 2>&1", "sh", command], { stdio: "ignore" });
-	return result.status === 0;
+	const exists = result.status === 0;
+	commandExistsCache.set(command, exists);
+	return exists;
 }
 
 function copyWith(command: string, args: string[], text: string): boolean {
@@ -158,24 +201,16 @@ function copyWith(command: string, args: string[], text: string): boolean {
 }
 
 function copyToClipboard(text: string): string | undefined {
-	if (process.platform === "darwin" && commandExists("pbcopy")) {
-		return copyWith("pbcopy", [], text) ? undefined : "pbcopy failed";
+	const failedCommands: string[] = [];
+
+	for (const command of clipboardCommands) {
+		if (!command.enabled() || !commandExists(command.name)) continue;
+		if (copyWith(command.name, command.args, text)) return undefined;
+		failedCommands.push(command.name);
 	}
 
-	if (process.env.TERMUX_VERSION && commandExists("termux-clipboard-set")) {
-		return copyWith("termux-clipboard-set", [], text) ? undefined : "termux-clipboard-set failed";
-	}
-
-	if (commandExists("wl-copy")) {
-		return copyWith("wl-copy", [], text) ? undefined : "wl-copy failed";
-	}
-
-	if (commandExists("xclip")) {
-		return copyWith("xclip", ["-selection", "clipboard"], text) ? undefined : "xclip failed";
-	}
-
-	if (commandExists("xsel")) {
-		return copyWith("xsel", ["--clipboard", "--input"], text) ? undefined : "xsel failed";
+	if (failedCommands.length > 0) {
+		return `Clipboard command${failedCommands.length === 1 ? "" : "s"} failed (${failedCommands.join(", ")})`;
 	}
 
 	return "No clipboard command found (tried pbcopy, termux-clipboard-set, wl-copy, xclip, xsel)";
@@ -199,7 +234,7 @@ function isVisibleMessage(message: CopyableMessage, visibility: MessageVisibilit
 }
 
 function messageSearchText(message: CopyableMessage): string {
-	return [roleLabel(message.role), formatTime(message.timestamp), message.text].join(" ").toLowerCase();
+	return [roleLabel(message.role), message.text].join(" ").toLowerCase();
 }
 
 function messageMatchesSearch(message: CopyableMessage, search: string): boolean {
@@ -210,15 +245,35 @@ function messageMatchesSearch(message: CopyableMessage, search: string): boolean
 		.filter(Boolean);
 	if (terms.length === 0) return true;
 	const haystack = messageSearchText(message);
-	return terms.every((term) => haystack.includes(term));
+	const time = formatTime(message.timestamp).toLowerCase();
+	return terms.every((term) => {
+		if (term.startsWith("time:")) return time.includes(term.slice("time:".length));
+		return haystack.includes(term);
+	});
 }
 
 export function filteredMessages(messages: CopyableMessage[], visibility: MessageVisibility, search = ""): CopyableMessage[] {
 	return messages.filter((message) => isVisibleMessage(message, visibility) && messageMatchesSearch(message, search));
 }
 
+export function defaultVisibleMessages(messages: CopyableMessage[]): CopyableMessage[] {
+	return filteredMessages(messages, { showAssistant: true, showUser: true, showTools: false });
+}
+
 export function latestDefaultMessage(messages: CopyableMessage[]): CopyableMessage | undefined {
-	return filteredMessages(messages, { showAssistant: true, showUser: true, showTools: false }).at(-1) ?? messages.at(-1);
+	return defaultVisibleMessages(messages).at(-1) ?? messages.at(-1);
+}
+
+export function messageByDefaultNumber(messages: CopyableMessage[], number: number): CopyableMessage | undefined {
+	if (!Number.isInteger(number) || number < 1) return undefined;
+	return defaultVisibleMessages(messages)[number - 1];
+}
+
+export function formatMessageForCopy(message: CopyableMessage, format: CopyFormat): string {
+	if (format === "raw") return message.text;
+	const time = formatTime(message.timestamp);
+	const label = roleLabel(message.role);
+	return time ? `${label} at ${time}: ${message.text}` : `${label}: ${message.text}`;
 }
 
 function isPrintableSearchInput(data: string): boolean {
@@ -277,6 +332,24 @@ function renderMessageLine(
 	return preview ? `${meta}  ${styledPreview}` : meta;
 }
 
+function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMessageTheme, format: CopyFormat): string[] {
+	const contentWidth = Math.max(1, width - 2);
+	const text = formatMessageForCopy(message, format);
+	const wrapped = wrapTextWithAnsi(styleRoleText(theme, message.role, text, false), contentWidth);
+	const shown = wrapped.slice(0, MAX_PEEK_LINES);
+	const remaining = wrapped.length - shown.length;
+	const title = theme.fg("dim", `Peek ${format === "metadata" ? "metadata" : "raw"} ${roleLabel(message.role)} message`);
+	const lines = [title, ...shown.map((line) => `  ${line}`)];
+	if (remaining > 0) lines.push(theme.fg("dim", `  … ${remaining} more wrapped line${remaining === 1 ? "" : "s"}`));
+	return lines;
+}
+
+function helpLine(width: number): string {
+	if (width < 48) return "↑↓ · Tab peek · Alt+M meta · Enter · Esc";
+	if (width < 74) return "↑↓ nav · Home/End · Tab peek · Ctrl+U/A/T filters · Enter · Esc";
+	return "type search · ↑↓ navigate · Home/End · Tab peek · Ctrl+U/A/T filters · Alt+M meta · Enter · Esc";
+}
+
 type PickerInputResult = "copy" | "cancel" | "render" | "none";
 
 export class CopyMessagePickerState {
@@ -288,15 +361,23 @@ export class CopyMessagePickerState {
 	search = "";
 	visibleMessages: CopyableMessage[];
 	selectedIndex: number;
+	format: CopyFormat;
+	peek = false;
 	private searchAnchorId: string | undefined;
 
-	constructor(private readonly messages: CopyableMessage[]) {
+	constructor(private readonly messages: CopyableMessage[], initialFormat: CopyFormat = "raw") {
+		this.format = initialFormat;
 		this.visibleMessages = filteredMessages(messages, this.visibility, this.search);
 		this.selectedIndex = Math.max(0, this.visibleMessages.length - 1);
 	}
 
 	selectedMessage(): CopyableMessage | undefined {
 		return this.visibleMessages[this.selectedIndex];
+	}
+
+	selectedCopyText(): string | undefined {
+		const selected = this.selectedMessage();
+		return selected ? formatMessageForCopy(selected, this.format) : undefined;
 	}
 
 	render(width: number, theme: CopyMessageTheme): string[] {
@@ -307,12 +388,9 @@ export class CopyMessagePickerState {
 		const assistantState = filterLabel(theme, "assistant", this.visibility.showAssistant, "accent");
 		const toolState = filterLabel(theme, "tools", this.visibility.showTools, "dim");
 		const searchState = this.search ? theme.fg("accent", `search “${this.search}”`) : theme.fg("dim", "type to filter");
+		const formatState = theme.fg(this.format === "metadata" ? "accent" : "dim", this.format === "metadata" ? "copy metadata" : "copy raw");
 
-		const lines = [
-			theme.bold(theme.fg("accent", "Copy raw message")),
-			theme.fg("muted", "Newest is selected at bottom. Up goes back in time."),
-			"",
-		];
+		const lines = [theme.bold(theme.fg("accent", "Copy message")), ""];
 
 		if (this.visibleMessages.length === 0) {
 			lines.push(theme.fg("warning", this.search ? "No messages match current filters and search." : "No messages visible with current filters."));
@@ -324,10 +402,16 @@ export class CopyMessagePickerState {
 			}
 		}
 
+		const selected = this.selectedMessage();
+		if (this.peek && selected) {
+			lines.push("");
+			lines.push(...renderPeekLines(selected, width, theme, this.format));
+		}
+
 		const position = this.visibleMessages.length === 0 ? "0/0" : `${this.selectedIndex + 1}/${this.visibleMessages.length}`;
-		lines.push(`${theme.fg("dim", `(${position})`)} · ${userState} · ${assistantState} · ${toolState} · ${searchState}`);
+		lines.push(`${theme.fg("dim", `(${position})`)} · ${userState} · ${assistantState} · ${toolState} · ${formatState} · ${searchState}`);
 		lines.push("");
-		lines.push(hotkeyHint(theme, "type search · Home/End jump · Ctrl+U/A/T filters · Enter copy · Esc cancel"));
+		lines.push(hotkeyHint(theme, helpLine(width)));
 		lines.push("");
 		return lines.map((line) => truncateToWidth(line, width, ""));
 	}
@@ -346,6 +430,14 @@ export class CopyMessagePickerState {
 		if (matchesKey(data, "ctrl+u")) {
 			this.visibility.showUser = !this.visibility.showUser;
 			this.refreshMessages();
+			return "render";
+		}
+		if (matchesKey(data, "alt+m")) {
+			this.format = this.format === "raw" ? "metadata" : "raw";
+			return "render";
+		}
+		if (matchesKey(data, "tab")) {
+			this.peek = !this.peek;
 			return "render";
 		}
 		if (matchesKey(data, "backspace") || data === "\x7f") {
@@ -421,9 +513,32 @@ export class CopyMessagePickerState {
 	}
 }
 
-async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessage[]) {
-	return ctx.ui.custom<CopyableMessage | null>((tui, theme, _keybindings, done) => {
-		const state = new CopyMessagePickerState(messages);
+type ParsedCopyMessageArgs = {
+	format: CopyFormat;
+	selector?: "latest" | { number: number };
+};
+
+function parseCopyArgs(args: string | undefined): ParsedCopyMessageArgs {
+	const result: ParsedCopyMessageArgs = { format: "raw" };
+	for (const token of (args ?? "").trim().toLowerCase().split(/\s+/).filter(Boolean)) {
+		if (token === "--with-meta" || token === "--with-metadata" || token === "--with-role") {
+			result.format = "metadata";
+			continue;
+		}
+		if (token === "last" || token === "latest" || token === "newest") {
+			result.selector = "latest";
+			continue;
+		}
+		if (/^\d+$/.test(token)) {
+			result.selector = { number: Number.parseInt(token, 10) };
+		}
+	}
+	return result;
+}
+
+async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessage[], initialFormat: CopyFormat) {
+	return ctx.ui.custom<{ message: CopyableMessage; text: string } | null>((tui, theme, _keybindings, done) => {
+		const state = new CopyMessagePickerState(messages, initialFormat);
 		return {
 			render(width: number) {
 				return state.render(width, theme);
@@ -432,7 +547,9 @@ async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessa
 			handleInput(data: string) {
 				const result = state.handleInput(data);
 				if (result === "copy") {
-					done(state.selectedMessage() ?? null);
+					const selected = state.selectedMessage();
+					const text = state.selectedCopyText();
+					done(selected && text !== undefined ? { message: selected, text } : null);
 					return;
 				}
 				if (result === "cancel") {
@@ -445,63 +562,77 @@ async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessa
 	});
 }
 
-function copySelectedMessage(ctx: Pick<ExtensionCommandContext, "ui">, selected: CopyableMessage) {
-	const error = copyToClipboard(selected.text);
+function copyNotificationText(selected: CopyableMessage): string {
+	return `Copied ${roleLabel(selected.role)} message: “${compactPreview(selected.text, 48)}”`;
+}
+
+function copySelectedMessage(ctx: Pick<ExtensionCommandContext, "ui">, selected: CopyableMessage, text = selected.text) {
+	const error = copyToClipboard(text);
 	if (error) {
 		ctx.ui.notify(error, "error");
 		return;
 	}
 
-	ctx.ui.notify(`Copied ${roleLabel(selected.role)} message`, "info");
+	ctx.ui.notify(copyNotificationText(selected), "info");
 }
 
-function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionManager" | "ui">) {
+function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionManager" | "ui">, format: CopyFormat) {
 	const result = getMostRecentUserMessage(ctx);
 	if (result.kind === "no-user-message") {
 		ctx.ui.notify("No user messages found", "warning");
 		return;
 	}
 	if (result.kind === "no-text") {
-		ctx.ui.notify("The most recent user message has no text to copy", "warning");
+		ctx.ui.notify("No user message text found", "warning");
 		return;
 	}
 
-	copySelectedMessage(ctx, result.message);
+	copySelectedMessage(ctx, result.message, formatMessageForCopy(result.message, format));
 }
 
 export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCommand">) {
 	pi.registerCommand("copy-message", {
-		description: "Select a session message and copy its raw text to the clipboard",
+		description: "Select a session message and copy its text to the clipboard",
 		handler: async (args, ctx) => {
-			if (ctx.mode !== "tui") {
-				ctx.ui.notify("/copy-message requires interactive TUI mode", "error");
-				return;
-			}
-
+			const parsedArgs = parseCopyArgs(args);
 			const messages = collectCopyableMessages(ctx);
 			if (messages.length === 0) {
 				ctx.ui.notify("No copyable messages found in the current branch", "error");
 				return;
 			}
 
-			const trimmedArgs = (args ?? "").trim().toLowerCase();
-			if (trimmedArgs === "last" || trimmedArgs === "latest" || trimmedArgs === "newest") {
+			if (parsedArgs.selector === "latest") {
 				const latestVisible = latestDefaultMessage(messages);
-				if (latestVisible) copySelectedMessage(ctx, latestVisible);
+				if (latestVisible) copySelectedMessage(ctx, latestVisible, formatMessageForCopy(latestVisible, parsedArgs.format));
 				return;
 			}
 
-			const selected = await pickMessage(ctx, messages);
+			if (typeof parsedArgs.selector === "object") {
+				const selected = messageByDefaultNumber(messages, parsedArgs.selector.number);
+				if (!selected) {
+					ctx.ui.notify(`No default visible message #${parsedArgs.selector.number} (found ${defaultVisibleMessages(messages).length})`, "warning");
+					return;
+				}
+				copySelectedMessage(ctx, selected, formatMessageForCopy(selected, parsedArgs.format));
+				return;
+			}
+
+			if (ctx.mode !== "tui") {
+				ctx.ui.notify("/copy-message requires interactive TUI mode unless you pass latest/last/newest or a message number", "error");
+				return;
+			}
+
+			const selected = await pickMessage(ctx, messages, parsedArgs.format);
 			if (!selected) return;
 
-			copySelectedMessage(ctx, selected);
+			copySelectedMessage(ctx, selected.message, selected.text);
 		},
 	});
 
 	pi.registerCommand("copy-user", {
 		description: "Copy the most recent user message to the clipboard",
-		handler: async (_args, ctx) => {
-			copyMostRecentUserMessage(ctx);
+		handler: async (args, ctx) => {
+			copyMostRecentUserMessage(ctx, parseCopyArgs(args).format);
 		},
 	});
 }

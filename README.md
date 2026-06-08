@@ -13,9 +13,11 @@ A [pi](https://github.com/earendil-works/pi-mono) extension that adds `/copy-mes
 - Selects the newest visible message by default
 - Supports role filters for user, assistant, and tool/bash messages
 - Hides tool/bash messages by default
-- Supports type-to-filter search across role, time, and message text
+- Supports type-to-filter search across role and message text, with `time:<term>` for timestamp search
 - Supports Home/End jumps for oldest/newest visible messages
 - Includes fast paths: `/copy-message latest`, `/copy-message last`, and `/copy-message newest`
+- Supports direct numbered copies like `/copy-message 3`
+- Supports metadata copies with `--with-meta`, `--with-metadata`, or `--with-role`
 
 ## Install
 
@@ -70,6 +72,20 @@ Aliases:
 /copy-message newest
 ```
 
+Copy the 3rd default-visible message directly, matching the picker's 1-based oldest-to-newest numbering:
+
+```text
+/copy-message 3
+```
+
+Copy with role and timestamp metadata instead of raw text only:
+
+```text
+/copy-message latest --with-meta
+/copy-message 3 --with-role
+/copy-user --with-meta
+```
+
 ## Keyboard controls
 
 | Key | Action |
@@ -79,11 +95,14 @@ Aliases:
 | `Home` | Jump to oldest visible message |
 | `End` | Jump to newest visible message |
 | Type text | Filter visible messages |
+| `time:<term>` | Search timestamps |
 | `Backspace` | Delete one search character |
 | `Ctrl+U` | Toggle user messages |
 | `Ctrl+A` | Toggle assistant messages |
 | `Ctrl+T` | Toggle tool/bash messages |
-| `Enter` | Copy selected raw message text |
+| `Tab` | Toggle a wrapped preview of the selected message |
+| `Alt+M` | Toggle raw vs metadata copy format |
+| `Enter` | Copy selected message text |
 | `Esc` | Cancel |
 
 ## Behavior notes
@@ -91,9 +110,12 @@ Aliases:
 - Entry IDs are hidden from the picker.
 - The picker caps visible rows and scrolls instead of filling the screen.
 - Search preserves your original selected message and restores it when the search is cleared.
+- General search does not match timestamps; use `time:<term>` when you want to search by displayed time.
 - Filter labels honor the active pi theme.
+- Copy notifications include the role and a short preview so you can verify what was copied.
 - `/copy-message latest` respects default visibility: user and assistant messages are visible, tool/bash messages are hidden. If only hidden messages exist, it falls back to the newest message so the command still does something useful.
-- The command requires interactive TUI mode because the picker is a custom TUI component.
+- `/copy-message` with no direct selector requires interactive TUI mode because the picker is a custom TUI component.
+- Direct commands such as `/copy-user`, `/copy-message latest`, and `/copy-message 3` do not require TUI mode, though non-UI modes may not display notifications.
 
 ## Compatibility
 

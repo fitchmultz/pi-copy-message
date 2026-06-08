@@ -5,10 +5,13 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import extension, {
 	collectCopyableMessages,
 	CopyMessagePickerState,
+	defaultVisibleMessages,
 	type CopyableMessage,
 	filteredMessages,
+	formatMessageForCopy,
 	getMostRecentUserMessage,
 	latestDefaultMessage,
+	messageByDefaultNumber,
 } from "../extensions/copy-message.ts";
 
 type CommandOptions = Parameters<ExtensionAPI["registerCommand"]>[1];
@@ -36,11 +39,16 @@ const press = (state: CopyMessagePickerState, keys: string) => {
 	for (const key of keys) state.handleInput(key);
 };
 
+const plainTheme = {
+	fg: (_color: string, text: string) => text,
+	bold: (text: string) => text,
+} as never;
+
 const registrations = captureRegisteredCommands();
 assert.deepEqual([...registrations.keys()], ["copy-message", "copy-user"]);
 assert.equal(registrations.get("copy-user")?.description, "Copy the most recent user message to the clipboard");
 assert.equal(typeof registrations.get("copy-user")?.handler, "function");
-assert.equal(registrations.get("copy-message")?.description, "Select a session message and copy its raw text to the clipboard");
+assert.equal(registrations.get("copy-message")?.description, "Select a session message and copy its text to the clipboard");
 assert.equal(typeof registrations.get("copy-message")?.handler, "function");
 
 const mixedBranch = {
@@ -78,6 +86,18 @@ assert.deepEqual(
 			],
 		},
 	}),
+	{
+		kind: "message",
+		message: { id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "older text" },
+	},
+);
+
+assert.deepEqual(
+	getMostRecentUserMessage({
+		sessionManager: {
+			getBranch: () => [{ type: "message", id: "u0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "user", content: "   " } }],
+		},
+	}),
 	{ kind: "no-text" },
 );
 
@@ -101,6 +121,18 @@ assert.deepEqual(
 
 {
 	const messages = [
+		copyableMessage("u0", "user", "first user", 0),
+		copyableMessage("t0", "toolResult", "hidden tool", 1),
+		copyableMessage("a0", "assistant", "second assistant", 2),
+	];
+	assert.deepEqual(defaultVisibleMessages(messages).map((message) => message.id), ["u0", "a0"]);
+	assert.equal(messageByDefaultNumber(messages, 1)?.id, "u0");
+	assert.equal(messageByDefaultNumber(messages, 2)?.id, "a0");
+	assert.equal(messageByDefaultNumber(messages, 3), undefined);
+}
+
+{
+	const messages = [
 		copyableMessage("u0", "user", "alpha user text", 0),
 		copyableMessage("a0", "assistant", "beta assistant text", 1),
 		copyableMessage("a1", "assistant", "gamma final answer", 2),
@@ -114,6 +146,18 @@ assert.deepEqual(
 	assert.deepEqual(
 		filteredMessages(messages, { showAssistant: false, showUser: true, showTools: true }, "delta").map((message) => message.id),
 		["t0"],
+	);
+	assert.deepEqual(
+		filteredMessages([copyableMessage("u0", "user", "alpha", 0)], { showAssistant: true, showUser: true, showTools: true }, "00").map(
+			(message) => message.id,
+		),
+		[],
+	);
+	assert.deepEqual(
+		filteredMessages([copyableMessage("u0", "user", "alpha", 0)], { showAssistant: true, showUser: true, showTools: true }, "time:00").map(
+			(message) => message.id,
+		),
+		["u0"],
 	);
 }
 
@@ -146,6 +190,12 @@ assert.deepEqual(
 	assert.equal(state.handleInput("\x01"), "render");
 	press(state, "gamma");
 	assert.equal(state.selectedMessage()?.text, "gamma final answer");
+	assert.equal(state.handleInput("\x1bm"), "render");
+	assert.equal(state.format, "metadata");
+	assert.match(state.selectedCopyText() ?? "", /^assistant at .*: gamma final answer$/);
+	assert.equal(state.handleInput("\t"), "render");
+	assert.equal(state.peek, true);
+	assert.ok(state.render(60, plainTheme).some((line) => line.includes("Peek metadata assistant message")));
 	assert.equal(state.handleInput("\r"), "copy");
 }
 
@@ -172,4 +222,10 @@ assert.deepEqual(
 	press(state, "\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f");
 	assert.equal(state.search, "");
 	assert.equal(state.selectedMessage()?.text, "raw assistant message 9");
+}
+
+{
+	const message = copyableMessage("u0", "user", "raw user text", 0);
+	assert.equal(formatMessageForCopy(message, "raw"), "raw user text");
+	assert.match(formatMessageForCopy(message, "metadata"), /^user at .*: raw user text$/);
 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Copy notifications now include the role and a short grapheme-safe preview.
+- `/copy-user` now skips blank user entries and copies the most recent user message with text.
+- Add direct numbered copies with `/copy-message <number>`.
+- Add metadata copy format via `--with-meta`, `--with-metadata`, `--with-role`, and the picker `Alt+M` toggle.
+- Add picker `Tab` peek mode for a wrapped preview of the selected message.
+- Shorten picker help at narrow widths and remove the always-on subtitle.
+- Stop matching timestamps in normal search; use `time:<term>` for timestamp search.
+- Cache clipboard command lookups and try later clipboard commands when an earlier command fails.
+- Document direct non-TUI usage for `/copy-user` and direct `/copy-message` selectors.
+
 ## 1.0.3 - 2026-06-07
 
 - Register `/copy-message` before `/copy-user` so package command autocomplete prefers the picker over the shortcut.
