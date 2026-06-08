@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.4 - 2026-06-08
 
 - Copy notifications now include the role and a short grapheme-safe preview.
 - `/copy-user` now skips blank user entries and copies the most recent user message with text.
