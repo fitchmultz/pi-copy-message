@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.5 - 2026-06-15
+
+- updated the local pi development baseline to `@earendil-works/pi-coding-agent` / `@earendil-works/pi-tui` `0.79.4` and refreshed the npm lockfile
+- validated direct non-TUI command handling under pi `0.79.4`
+
 ## 1.0.4 - 2026-06-08
 
 - Copy notifications now include the role and a short grapheme-safe preview.
