@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.6 - 2026-06-22
+
+- updated the local pi development baseline to `@earendil-works/pi-coding-agent` / `@earendil-works/pi-tui` `0.79.10` and refreshed the npm lockfile
+- refreshed the README compatibility note for pi `0.79.10` and removed the obsolete fleet-tested marker
+- validated with `npm run check` and an isolated Pi package-load smoke under pi `0.79.10`
+
 ## 1.0.5 - 2026-06-15
 
 - updated the local pi development baseline to `@earendil-works/pi-coding-agent` / `@earendil-works/pi-tui` `0.79.4` and refreshed the npm lockfile

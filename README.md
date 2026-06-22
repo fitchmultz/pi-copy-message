@@ -119,7 +119,7 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Tested with pi 0.78.1
+- Tested with pi 0.79.10
 - Supported Node.js range for local repo tooling: `>=22.19.0`
 - `.nvmrc` pins Node 22.19.0 for local development
 
