@@ -119,11 +119,11 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Tested with pi 0.80.1
+- Tested with pi 0.80.2
 - Supported Node.js range for local repo tooling: `>=22.19.0`
 - `.nvmrc` pins Node 22.19.0 for local development
 
-This package keeps pi core packages as optional wildcard peers per current pi package guidance. Local development uses `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` as dev dependencies for typechecking and tests.
+This package keeps pi core packages as wildcard peers (`*`) per pi package guidance. Pi aliases these imports to its own bundled copies when loading the extension, so the package never bundles or shadows pi core. Local development uses `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` as dev dependencies for typechecking and tests.
 
 ## Development
 

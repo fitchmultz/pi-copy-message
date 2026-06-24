@@ -4,6 +4,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import extension, {
 	collectCopyableMessages,
+	copyArgumentCompletions,
 	CopyMessagePickerState,
 	defaultVisibleMessages,
 	type CopyableMessage,
@@ -50,6 +51,46 @@ assert.equal(registrations.get("copy-user")?.description, "Copy the most recent 
 assert.equal(typeof registrations.get("copy-user")?.handler, "function");
 assert.equal(registrations.get("copy-message")?.description, "Select a session message and copy its text to the clipboard");
 assert.equal(typeof registrations.get("copy-message")?.handler, "function");
+
+{
+	// argument completion helper
+	assert.deepEqual(copyArgumentCompletions("", true), [
+		{ value: "latest", label: "latest" },
+		{ value: "last", label: "last" },
+		{ value: "newest", label: "newest" },
+		{ value: "--with-meta", label: "--with-meta" },
+		{ value: "--with-metadata", label: "--with-metadata" },
+		{ value: "--with-role", label: "--with-role" },
+	]);
+	assert.deepEqual(copyArgumentCompletions("la", true), [
+		{ value: "latest", label: "latest" },
+		{ value: "last", label: "last" },
+	]);
+	assert.deepEqual(copyArgumentCompletions("--with-r", true), [{ value: "--with-role", label: "--with-role" }]);
+	assert.deepEqual(copyArgumentCompletions("new", true), [{ value: "newest", label: "newest" }]);
+	assert.deepEqual(copyArgumentCompletions("5", true), null);
+	assert.deepEqual(copyArgumentCompletions("zzz", true), null);
+	assert.deepEqual(copyArgumentCompletions("", false), [
+		{ value: "--with-meta", label: "--with-meta" },
+		{ value: "--with-metadata", label: "--with-metadata" },
+		{ value: "--with-role", label: "--with-role" },
+	]);
+	assert.deepEqual(copyArgumentCompletions("la", false), null);
+	assert.deepEqual(copyArgumentCompletions("latest", false), null);
+
+	// wired onto both registered commands
+	assert.equal(typeof registrations.get("copy-message")?.getArgumentCompletions, "function");
+	assert.equal(typeof registrations.get("copy-user")?.getArgumentCompletions, "function");
+	assert.deepEqual(registrations.get("copy-message")?.getArgumentCompletions?.("la"), [
+		{ value: "latest", label: "latest" },
+		{ value: "last", label: "last" },
+	]);
+	assert.deepEqual(registrations.get("copy-user")?.getArgumentCompletions?.("--with-meta"), [
+		{ value: "--with-meta", label: "--with-meta" },
+		{ value: "--with-metadata", label: "--with-metadata" },
+	]);
+	assert.deepEqual(registrations.get("copy-user")?.getArgumentCompletions?.("latest"), null);
+}
 
 const mixedBranch = {
 	sessionManager: {

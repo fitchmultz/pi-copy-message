@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import { matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 const MAX_VISIBLE_MESSAGES = 8;
@@ -183,20 +184,25 @@ const clipboardCommands: ClipboardCommand[] = [
 	{ name: "xsel", args: ["--clipboard", "--input"], enabled: () => true },
 ];
 
+const CLIPBOARD_TIMEOUT_MS = 3000;
 const commandExistsCache = new Map<string, boolean>();
 
 function commandExists(command: string): boolean {
 	const cached = commandExistsCache.get(command);
 	if (cached !== undefined) return cached;
 
-	const result = spawnSync("sh", ["-c", "command -v \"$1\" >/dev/null 2>&1", "sh", command], { stdio: "ignore" });
+	const result = spawnSync("sh", ["-c", "command -v \"$1\" >/dev/null 2>&1", "sh", command], {
+		stdio: "ignore",
+		timeout: CLIPBOARD_TIMEOUT_MS,
+		killSignal: "SIGKILL",
+	});
 	const exists = result.status === 0;
 	commandExistsCache.set(command, exists);
 	return exists;
 }
 
 function copyWith(command: string, args: string[], text: string): boolean {
-	const result = spawnSync(command, args, { input: text, encoding: "utf8" });
+	const result = spawnSync(command, args, { input: text, encoding: "utf8", timeout: CLIPBOARD_TIMEOUT_MS, killSignal: "SIGKILL" });
 	return !result.error && result.status === 0;
 }
 
@@ -513,6 +519,9 @@ export class CopyMessagePickerState {
 	}
 }
 
+const COPY_METADATA_FLAGS = ["--with-meta", "--with-metadata", "--with-role"];
+const COPY_LATEST_SELECTORS = ["latest", "last", "newest"];
+
 type ParsedCopyMessageArgs = {
 	format: CopyFormat;
 	selector?: "latest" | { number: number };
@@ -521,11 +530,11 @@ type ParsedCopyMessageArgs = {
 function parseCopyArgs(args: string | undefined): ParsedCopyMessageArgs {
 	const result: ParsedCopyMessageArgs = { format: "raw" };
 	for (const token of (args ?? "").trim().toLowerCase().split(/\s+/).filter(Boolean)) {
-		if (token === "--with-meta" || token === "--with-metadata" || token === "--with-role") {
+		if (COPY_METADATA_FLAGS.includes(token)) {
 			result.format = "metadata";
 			continue;
 		}
-		if (token === "last" || token === "latest" || token === "newest") {
+		if (COPY_LATEST_SELECTORS.includes(token)) {
 			result.selector = "latest";
 			continue;
 		}
@@ -534,6 +543,16 @@ function parseCopyArgs(args: string | undefined): ParsedCopyMessageArgs {
 		}
 	}
 	return result;
+}
+
+export function copyArgumentCompletions(prefix: string, includeSelectors: boolean): AutocompleteItem[] | null {
+	if (/^\d+$/.test(prefix)) return null;
+	const candidates = includeSelectors ? [...COPY_LATEST_SELECTORS, ...COPY_METADATA_FLAGS] : COPY_METADATA_FLAGS;
+	const normalized = prefix.toLowerCase();
+	const items = candidates
+		.filter((candidate) => candidate.startsWith(normalized))
+		.map((candidate) => ({ value: candidate, label: candidate }));
+	return items.length > 0 ? items : null;
 }
 
 async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessage[], initialFormat: CopyFormat) {
@@ -593,6 +612,7 @@ function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionMa
 export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCommand">) {
 	pi.registerCommand("copy-message", {
 		description: "Select a session message and copy its text to the clipboard",
+		getArgumentCompletions: (argumentPrefix) => copyArgumentCompletions(argumentPrefix, true),
 		handler: async (args, ctx) => {
 			const parsedArgs = parseCopyArgs(args);
 			const messages = collectCopyableMessages(ctx);
@@ -631,6 +651,7 @@ export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCom
 
 	pi.registerCommand("copy-user", {
 		description: "Copy the most recent user message to the clipboard",
+		getArgumentCompletions: (argumentPrefix) => copyArgumentCompletions(argumentPrefix, false),
 		handler: async (args, ctx) => {
 			copyMostRecentUserMessage(ctx, parseCopyArgs(args).format);
 		},

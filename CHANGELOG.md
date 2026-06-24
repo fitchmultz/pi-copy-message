@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.8 - 2026-06-24
+
+- Add `/copy-message` and `/copy-user` argument completions for `latest`/`last`/`newest` and `--with-meta`/`--with-metadata`/`--with-role`.
+- Bound clipboard commands with a 3s timeout so a wedged `xclip`/`wl-copy` daemon cannot hang the command.
+- Drop the obsolete `basic-ftp` npm override (no longer in the dependency tree).
+- Align pi core peer dependencies with package guidance (non-optional wildcard peers; pi aliases them to its bundled copies at load time).
+- Update the local pi development baseline to `0.80.2` and refresh the npm lockfile.
+
 ## 1.0.7 - 2026-06-23
 
 - updated the local pi development baseline to `@earendil-works/pi-coding-agent` / `@earendil-works/pi-tui` `0.80.1` and refreshed the npm lockfile

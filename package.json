@@ -1,6 +1,6 @@
 {
   "name": "pi-copy-message",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Pi extension with a searchable TUI picker for copying raw session messages",
   "author": "Mitch Fultz (https://github.com/fitchmultz)",
   "license": "MIT",
@@ -44,14 +44,11 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.80.1",
-    "@earendil-works/pi-tui": "^0.80.1",
+    "@earendil-works/pi-coding-agent": "^0.80.2",
+    "@earendil-works/pi-tui": "^0.80.2",
     "@types/node": "^25.9.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
-  },
-  "overrides": {
-    "basic-ftp": "6.0.1"
   },
   "pi": {
     "extensions": [
@@ -62,13 +59,5 @@
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*"
-  },
-  "peerDependenciesMeta": {
-    "@earendil-works/pi-coding-agent": {
-      "optional": true
-    },
-    "@earendil-works/pi-tui": {
-      "optional": true
-    }
   }
 }
