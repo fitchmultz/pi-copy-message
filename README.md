@@ -15,6 +15,7 @@ A [pi](https://github.com/earendil-works/pi-mono) extension that adds `/copy-mes
 - Hides tool/bash messages by default
 - Supports type-to-filter search across role and message text, with `time:<term>` for timestamp search
 - Supports Home/End jumps for oldest/newest visible messages
+- Uses Pi's configured selection bindings for navigation, copy, and cancel
 - Includes fast paths: `/copy-message latest`, `/copy-message last`, and `/copy-message newest`
 - Supports direct numbered copies like `/copy-message 3`
 - Supports metadata copies with `--with-meta`, `--with-metadata`, or `--with-role`
@@ -90,8 +91,8 @@ Copy with role and timestamp metadata instead of raw text only:
 
 | Key | Action |
 |---|---|
-| `↑` | Move to older visible message |
-| `↓` | Move to newer visible message |
+| Configured `tui.select.up` (default: `↑`) | Move to older visible message |
+| Configured `tui.select.down` (default: `↓`) | Move to newer visible message |
 | `Home` | Jump to oldest visible message |
 | `End` | Jump to newest visible message |
 | Type text | Filter visible messages |
@@ -102,8 +103,8 @@ Copy with role and timestamp metadata instead of raw text only:
 | `Ctrl+T` | Toggle tool/bash messages |
 | `Tab` | Toggle a wrapped preview of the selected message |
 | `Alt+M` | Toggle raw vs metadata copy format |
-| `Enter` | Copy selected message text |
-| `Esc` | Cancel |
+| Configured `tui.select.confirm` (default: `Enter`) | Copy selected message text |
+| Configured `tui.select.cancel` (default: `Esc`/`Ctrl+C`) | Cancel |
 
 ## Behavior notes
 
@@ -112,6 +113,8 @@ Copy with role and timestamp metadata instead of raw text only:
 - Search preserves your original selected message and restores it when the search is cleared.
 - General search does not match timestamps; use `time:<term>` when you want to search by displayed time.
 - Filter labels honor the active pi theme.
+- Selection key hints show the active Pi bindings. Configured selection actions take precedence if they collide with the picker's filter, preview, or format shortcuts.
+- Hidden custom messages are excluded in both current `custom_message` entries and legacy message-wrapped entries; only messages with `display: true` can appear or be copied.
 - Copy notifications include the role and a short preview so you can verify what was copied.
 - `/copy-message latest` respects default visibility: user and assistant messages are visible, tool/bash messages are hidden. If only hidden messages exist, it falls back to the newest message so the command still does something useful.
 - `/copy-message` with no direct selector requires interactive TUI mode because the picker is a custom TUI component.
@@ -119,7 +122,7 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Tested with pi 0.80.2
+- Tested with pi 0.80.6
 - Supported Node.js range for local repo tooling: `>=22.19.0`
 - `.nvmrc` pins Node 22.19.0 for local development
 

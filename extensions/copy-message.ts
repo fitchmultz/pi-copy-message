@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext, KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import { matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
@@ -110,14 +110,25 @@ function formatTime(timestamp: unknown): string {
 function entryToCopyableMessage(entry: unknown): CopyableMessage | undefined {
 	if (entry === null || typeof entry !== "object") return undefined;
 	const record = entry as Record<string, unknown>;
-	if (record.type !== "message") return undefined;
-	if (record.message === null || typeof record.message !== "object") return undefined;
+	let role: string;
+	let text: string;
 
-	const message = record.message as Record<string, unknown>;
-	const role = typeof message.role === "string" ? message.role : "message";
-	const text = textFromMessage(message);
+	if (record.type === "message" && record.message !== null && typeof record.message === "object") {
+		const message = record.message as Record<string, unknown>;
+		role = typeof message.role === "string" ? message.role : "message";
+		if (role === "custom" && message.display !== true) return undefined;
+		text = textFromMessage(message);
+	} else if (record.type === "branch_summary" || record.type === "compaction") {
+		role = record.type === "branch_summary" ? "branchSummary" : "compactionSummary";
+		text = typeof record.summary === "string" ? record.summary : "";
+	} else if (record.type === "custom_message" && record.display === true) {
+		role = "custom";
+		text = textFromContent(record.content);
+	} else {
+		return undefined;
+	}
+
 	if (!text.trim()) return undefined;
-
 	return {
 		id: typeof record.id === "string" ? record.id : "unknown",
 		role,
@@ -350,10 +361,58 @@ function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMes
 	return lines;
 }
 
-function helpLine(width: number): string {
-	if (width < 48) return "↑↓ · Tab peek · Alt+M meta · Enter · Esc";
-	if (width < 74) return "↑↓ nav · Home/End · Tab peek · Ctrl+U/A/T filters · Enter · Esc";
-	return "type search · ↑↓ navigate · Home/End · Tab peek · Ctrl+U/A/T filters · Alt+M meta · Enter · Esc";
+type PickerKeybindings = Pick<KeybindingsManager, "getKeys" | "matches">;
+
+function bindingHint(keybindings: PickerKeybindings | undefined, action: "up" | "down" | "confirm" | "cancel"): string {
+	const id = `tui.select.${action}` as const;
+	if (!keybindings) return { up: "up", down: "down", confirm: "enter", cancel: "escape/ctrl+c" }[action];
+	const keys = keybindings.getKeys(id);
+	return keys.reduce((shortest, key) => visibleWidth(key) < visibleWidth(shortest) ? key : shortest, keys[0] ?? "unbound");
+}
+
+function helpLines(width: number, keybindings?: PickerKeybindings): string[] {
+	const up = bindingHint(keybindings, "up");
+	const down = bindingHint(keybindings, "down");
+	const confirm = bindingHint(keybindings, "confirm");
+	const cancel = bindingHint(keybindings, "cancel");
+	const available = (data: string) =>
+		!keybindings ||
+		!(keybindings.matches(data, "tui.select.up") ||
+			keybindings.matches(data, "tui.select.down") ||
+			keybindings.matches(data, "tui.select.confirm") ||
+			keybindings.matches(data, "tui.select.cancel"));
+	const peek = available("\t") ? "Tab peek" : undefined;
+	const filters = [
+		{ hint: "U", data: "\x15" },
+		{ hint: "A", data: "\x01" },
+		{ hint: "T", data: "\x14" },
+	].filter(({ data }) => available(data));
+	const filterHint = filters.length > 0 ? `Ctrl+${filters.map(({ hint }) => hint).join("/")} filters` : undefined;
+	const meta = available("\x1bm") ? "Alt+M meta" : undefined;
+	const jumps = [
+		{ hint: "Home", data: "\x1b[H" },
+		{ hint: "End", data: "\x1b[F" },
+	].filter(({ data }) => available(data));
+	const jumpHint = jumps.length > 0 ? `${jumps.map(({ hint }) => hint).join("/")} jump` : undefined;
+	const join = (...hints: Array<string | undefined>) => hints.filter(Boolean).join(" · ");
+	const core = width < 74 ? [`${up}/${down} nav`, `${confirm} copy`, `${cancel} cancel`] : [`${up} older`, `${down} newer`, `${confirm} copy`, `${cancel} cancel`];
+	const optional: string[] = [];
+
+	if (visibleWidth(join(...core)) > width) {
+		const lines: string[] = [];
+		for (const hint of [`${up} older`, `${down} newer`, `${confirm} copy`, `${cancel} cancel`]) {
+			const candidate = join(lines.at(-1), hint);
+			if (lines.length === 0 || visibleWidth(candidate) > width) lines.push(hint);
+			else lines[lines.length - 1] = candidate;
+		}
+		return lines;
+	}
+
+	for (const hint of width < 74 ? [jumpHint, peek, filterHint, meta] : ["type search", jumpHint, peek, filterHint, meta]) {
+		if (hint && visibleWidth(join(...optional, hint, ...core)) <= width) optional.push(hint);
+	}
+
+	return [join(...optional, ...core)];
 }
 
 type PickerInputResult = "copy" | "cancel" | "render" | "none";
@@ -386,7 +445,7 @@ export class CopyMessagePickerState {
 		return selected ? formatMessageForCopy(selected, this.format) : undefined;
 	}
 
-	render(width: number, theme: CopyMessageTheme): string[] {
+	render(width: number, theme: CopyMessageTheme, keybindings?: PickerKeybindings): string[] {
 		const maxVisible = Math.min(this.visibleMessages.length, MAX_VISIBLE_MESSAGES);
 		const start = maxVisible === 0 ? 0 : Math.max(0, Math.min(this.selectedIndex - maxVisible + 1, this.visibleMessages.length - maxVisible));
 		const end = Math.min(this.visibleMessages.length, start + maxVisible);
@@ -417,12 +476,24 @@ export class CopyMessagePickerState {
 		const position = this.visibleMessages.length === 0 ? "0/0" : `${this.selectedIndex + 1}/${this.visibleMessages.length}`;
 		lines.push(`${theme.fg("dim", `(${position})`)} · ${userState} · ${assistantState} · ${toolState} · ${formatState} · ${searchState}`);
 		lines.push("");
-		lines.push(hotkeyHint(theme, helpLine(width)));
+		lines.push(...helpLines(width, keybindings).map((line) => hotkeyHint(theme, line)));
 		lines.push("");
 		return lines.map((line) => truncateToWidth(line, width, ""));
 	}
 
-	handleInput(data: string): PickerInputResult {
+	handleInput(data: string, keybindings?: PickerKeybindings): PickerInputResult {
+		if (keybindings?.matches(data, "tui.select.up")) {
+			this.move(-1);
+			return "render";
+		}
+		if (keybindings?.matches(data, "tui.select.down")) {
+			this.move(1);
+			return "render";
+		}
+		if (keybindings?.matches(data, "tui.select.confirm")) {
+			return this.visibleMessages.length > 0 ? "copy" : "none";
+		}
+		if (keybindings?.matches(data, "tui.select.cancel")) return "cancel";
 		if (matchesKey(data, "ctrl+t")) {
 			this.visibility.showTools = !this.visibility.showTools;
 			this.refreshMessages();
@@ -454,11 +525,11 @@ export class CopyMessagePickerState {
 			this.setSearch(this.search + data);
 			return "render";
 		}
-		if (matchesKey(data, "up")) {
+		if (!keybindings && matchesKey(data, "up")) {
 			this.move(-1);
 			return "render";
 		}
-		if (matchesKey(data, "down")) {
+		if (!keybindings && matchesKey(data, "down")) {
 			this.move(1);
 			return "render";
 		}
@@ -470,10 +541,10 @@ export class CopyMessagePickerState {
 			this.jumpToBottom();
 			return "render";
 		}
-		if (matchesKey(data, "enter") || matchesKey(data, "return")) {
+		if (!keybindings && (matchesKey(data, "enter") || matchesKey(data, "return"))) {
 			return this.visibleMessages.length > 0 ? "copy" : "none";
 		}
-		if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c")) {
+		if (!keybindings && (matchesKey(data, "escape") || matchesKey(data, "ctrl+c"))) {
 			return "cancel";
 		}
 		return "none";
@@ -556,15 +627,15 @@ export function copyArgumentCompletions(prefix: string, includeSelectors: boolea
 }
 
 async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessage[], initialFormat: CopyFormat) {
-	return ctx.ui.custom<{ message: CopyableMessage; text: string } | null>((tui, theme, _keybindings, done) => {
+	return ctx.ui.custom<{ message: CopyableMessage; text: string } | null>((tui, theme, keybindings, done) => {
 		const state = new CopyMessagePickerState(messages, initialFormat);
 		return {
 			render(width: number) {
-				return state.render(width, theme);
+				return state.render(width, theme, keybindings);
 			},
 			invalidate() {},
 			handleInput(data: string) {
-				const result = state.handleInput(data);
+				const result = state.handleInput(data, keybindings);
 				if (result === "copy") {
 					const selected = state.selectedMessage();
 					const text = state.selectedCopyText();

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Update the local Pi development baseline and compatibility documentation to 0.80.6.
+- Read current branch-summary, compaction-summary, and visible custom-message session entries in `/copy-message`; hidden custom messages stay excluded.
+- Honor configured Pi selection keybindings before local picker shortcuts and render their effective hints.
+
 ## 1.0.8 - 2026-06-24
 
 - Add `/copy-message` and `/copy-user` argument completions for `latest`/`last`/`newest` and `--with-meta`/`--with-metadata`/`--with-role`.
