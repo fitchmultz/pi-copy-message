@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.9 - 2026-07-11
+
 - Update the local Pi development baseline and compatibility documentation to 0.80.6.
 - Read current branch-summary, compaction-summary, and visible custom-message session entries in `/copy-message`; hidden custom messages stay excluded.
 - Honor configured Pi selection keybindings before local picker shortcuts and render their effective hints.
