@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refresh the local Pi development lock and compatibility documentation to 0.80.7; document how Pi's new built-in `Ctrl+X` complements the broader picker.
+
 ## 1.0.9 - 2026-07-11
 
 - Update the local Pi development baseline and compatibility documentation to 0.80.6.

@@ -122,7 +122,8 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Tested with pi 0.80.6
+- Tested with pi 0.80.7
+- Pi 0.80.7 includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
 - Supported Node.js range for local repo tooling: `>=22.19.0`
 - `.nvmrc` pins Node 22.19.0 for local development
 
