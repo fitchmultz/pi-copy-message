@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.0.11 - 2026-07-16
+
+- Refresh the local Pi development lock and compatibility baseline to 0.80.9; the unified model runtime and additive Kimi/model-catalog changes do not affect the message-history picker.
 
 ## 1.0.10 - 2026-07-14
 
