@@ -93,8 +93,10 @@ Copy with role and timestamp metadata instead of raw text only:
 |---|---|
 | Configured `tui.select.up` (default: `↑`) | Move to older visible message |
 | Configured `tui.select.down` (default: `↓`) | Move to newer visible message |
-| `Home` | Jump to oldest visible message |
-| `End` | Jump to newest visible message |
+| Configured `tui.select.pageUp` / `tui.select.pageDown` (default: `PageUp` / `PageDown`) | Move by one visible page in regular mode |
+| `Ctrl+PageUp` / `Ctrl+PageDown` | Move by one visible page in fullscreen mode |
+| `Home` / `End` | Jump to oldest/newest visible message in regular mode |
+| `Ctrl+Home` / `Ctrl+End` | Jump to oldest/newest visible message in fullscreen mode |
 | Type text | Filter visible messages |
 | `time:<term>` | Search timestamps |
 | `Backspace` | Delete one search character |
@@ -122,8 +124,8 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Tested with pi 0.80.9
-- Pi 0.80.7 includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
+- Requires and is tested with Pi 0.84.0 or later
+- Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
 - Supported Node.js range for local repo tooling: `>=22.19.0`
 - `.nvmrc` pins Node 22.19.0 for local development
 
@@ -139,4 +141,4 @@ npm run check
 Key files:
 
 - `extensions/copy-message.ts` — publishable extension implementation
-- `tests/copy-message.test.ts` — regression tests for command wiring, filtering, search, jumps, and clipboard behavior
+- `tests/copy-message.test.ts` — regression tests for command wiring, filtering, search, navigation, and copy formatting
