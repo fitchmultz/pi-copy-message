@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.0 - 2026-08-06
+
+- Set pi 0.84.0 as the minimum supported version and refresh the local coding-agent and TUI development baseline.
+- Honor configured `tui.select.pageUp` and `tui.select.pageDown` bindings, with Ctrl-modified page and jump controls that remain available in fullscreen mode.
+- Decode Kitty CSI-u printable input so type-to-filter search works in terminals using Kitty keyboard disambiguation.
+- Validate the package and its core copy flows with an isolated Pi 0.84.0 installation.
+
 ## 1.0.11 - 2026-07-16
 
 - Refresh the local Pi development lock and compatibility baseline to 0.80.9; the unified model runtime and additive Kimi/model-catalog changes do not affect the message-history picker.

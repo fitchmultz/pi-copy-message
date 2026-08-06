@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import type { ExtensionAPI, ExtensionCommandContext, KeybindingsManager } from "@earendil-works/pi-coding-agent";
-import type { AutocompleteItem } from "@earendil-works/pi-tui";
-import { matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import type { AutocompleteItem, TuiMode } from "@earendil-works/pi-tui";
+import { decodeKittyPrintable, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 const MAX_VISIBLE_MESSAGES = 8;
 const MAX_PEEK_LINES = 16;
@@ -370,7 +370,7 @@ function bindingHint(keybindings: PickerKeybindings | undefined, action: "up" | 
 	return keys.reduce((shortest, key) => visibleWidth(key) < visibleWidth(shortest) ? key : shortest, keys[0] ?? "unbound");
 }
 
-function helpLines(width: number, keybindings?: PickerKeybindings): string[] {
+function helpLines(width: number, keybindings?: PickerKeybindings, tuiMode: TuiMode = "regular"): string[] {
 	const up = bindingHint(keybindings, "up");
 	const down = bindingHint(keybindings, "down");
 	const confirm = bindingHint(keybindings, "confirm");
@@ -389,10 +389,15 @@ function helpLines(width: number, keybindings?: PickerKeybindings): string[] {
 	].filter(({ data }) => available(data));
 	const filterHint = filters.length > 0 ? `Ctrl+${filters.map(({ hint }) => hint).join("/")} filters` : undefined;
 	const meta = available("\x1bm") ? "Alt+M meta" : undefined;
-	const jumps = [
-		{ hint: "Home", data: "\x1b[H" },
-		{ hint: "End", data: "\x1b[F" },
-	].filter(({ data }) => available(data));
+	const jumps = (tuiMode === "fullscreen"
+		? [
+				{ hint: "Ctrl+Home", data: "\x1b[1;5H" },
+				{ hint: "Ctrl+End", data: "\x1b[1;5F" },
+			]
+		: [
+				{ hint: "Home", data: "\x1b[H" },
+				{ hint: "End", data: "\x1b[F" },
+			]).filter(({ data }) => available(data));
 	const jumpHint = jumps.length > 0 ? `${jumps.map(({ hint }) => hint).join("/")} jump` : undefined;
 	const join = (...hints: Array<string | undefined>) => hints.filter(Boolean).join(" · ");
 	const core = width < 74 ? [`${up}/${down} nav`, `${confirm} copy`, `${cancel} cancel`] : [`${up} older`, `${down} newer`, `${confirm} copy`, `${cancel} cancel`];
@@ -445,7 +450,7 @@ export class CopyMessagePickerState {
 		return selected ? formatMessageForCopy(selected, this.format) : undefined;
 	}
 
-	render(width: number, theme: CopyMessageTheme, keybindings?: PickerKeybindings): string[] {
+	render(width: number, theme: CopyMessageTheme, keybindings?: PickerKeybindings, tuiMode: TuiMode = "regular"): string[] {
 		const maxVisible = Math.min(this.visibleMessages.length, MAX_VISIBLE_MESSAGES);
 		const start = maxVisible === 0 ? 0 : Math.max(0, Math.min(this.selectedIndex - maxVisible + 1, this.visibleMessages.length - maxVisible));
 		const end = Math.min(this.visibleMessages.length, start + maxVisible);
@@ -476,7 +481,7 @@ export class CopyMessagePickerState {
 		const position = this.visibleMessages.length === 0 ? "0/0" : `${this.selectedIndex + 1}/${this.visibleMessages.length}`;
 		lines.push(`${theme.fg("dim", `(${position})`)} · ${userState} · ${assistantState} · ${toolState} · ${formatState} · ${searchState}`);
 		lines.push("");
-		lines.push(...helpLines(width, keybindings).map((line) => hotkeyHint(theme, line)));
+		lines.push(...helpLines(width, keybindings, tuiMode).map((line) => hotkeyHint(theme, line)));
 		lines.push("");
 		return lines.map((line) => truncateToWidth(line, width, ""));
 	}
@@ -488,6 +493,14 @@ export class CopyMessagePickerState {
 		}
 		if (keybindings?.matches(data, "tui.select.down")) {
 			this.move(1);
+			return "render";
+		}
+		if (keybindings?.matches(data, "tui.select.pageUp")) {
+			this.move(-MAX_VISIBLE_MESSAGES);
+			return "render";
+		}
+		if (keybindings?.matches(data, "tui.select.pageDown")) {
+			this.move(MAX_VISIBLE_MESSAGES);
 			return "render";
 		}
 		if (keybindings?.matches(data, "tui.select.confirm")) {
@@ -521,8 +534,9 @@ export class CopyMessagePickerState {
 			this.setSearch(this.search.slice(0, -1));
 			return "render";
 		}
-		if (isPrintableSearchInput(data)) {
-			this.setSearch(this.search + data);
+		const printable = decodeKittyPrintable(data) ?? data;
+		if (isPrintableSearchInput(printable)) {
+			this.setSearch(this.search + printable);
 			return "render";
 		}
 		if (!keybindings && matchesKey(data, "up")) {
@@ -531,6 +545,30 @@ export class CopyMessagePickerState {
 		}
 		if (!keybindings && matchesKey(data, "down")) {
 			this.move(1);
+			return "render";
+		}
+		if (!keybindings && matchesKey(data, "pageUp")) {
+			this.move(-MAX_VISIBLE_MESSAGES);
+			return "render";
+		}
+		if (!keybindings && matchesKey(data, "pageDown")) {
+			this.move(MAX_VISIBLE_MESSAGES);
+			return "render";
+		}
+		if (matchesKey(data, "ctrl+pageUp")) {
+			this.move(-MAX_VISIBLE_MESSAGES);
+			return "render";
+		}
+		if (matchesKey(data, "ctrl+pageDown")) {
+			this.move(MAX_VISIBLE_MESSAGES);
+			return "render";
+		}
+		if (matchesKey(data, "ctrl+home")) {
+			this.jumpToTop();
+			return "render";
+		}
+		if (matchesKey(data, "ctrl+end")) {
+			this.jumpToBottom();
 			return "render";
 		}
 		if (matchesKey(data, "home")) {
@@ -631,7 +669,7 @@ async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessa
 		const state = new CopyMessagePickerState(messages, initialFormat);
 		return {
 			render(width: number) {
-				return state.render(width, theme, keybindings);
+				return state.render(width, theme, keybindings, tui.mode);
 			},
 			invalidate() {},
 			handleInput(data: string) {

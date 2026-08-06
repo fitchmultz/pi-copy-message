@@ -263,6 +263,7 @@ assert.deepEqual(
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
 	const hints60 = state.render(60, plainTheme).at(-2) ?? "";
 	const hints80 = state.render(80, plainTheme).at(-2) ?? "";
+	const fullscreenHints = state.render(100, plainTheme, undefined, "fullscreen").at(-2) ?? "";
 
 	assert.ok(hints60.length <= 60);
 	assert.match(hints60, /up\/down nav/);
@@ -277,6 +278,9 @@ assert.deepEqual(
 	assert.match(hints80, /escape\/ctrl\+c cancel/);
 	assert.match(hints80, /type search/);
 	assert.doesNotMatch(hints80, /Home\/End jump|Tab peek|filters|Alt\+M meta/);
+
+	assert.match(fullscreenHints, /Ctrl\+Home\/Ctrl\+End jump/);
+	assert.doesNotMatch(fullscreenHints, /(?:^| · )Home\/End jump/);
 }
 
 {
@@ -287,12 +291,16 @@ assert.deepEqual(
 	const inputs = {
 		"tui.select.up": "\x14",
 		"tui.select.down": "\x01",
+		"tui.select.pageUp": "\x1b[5~",
+		"tui.select.pageDown": "\x1b[6~",
 		"tui.select.confirm": "\t",
 		"tui.select.cancel": "\x1bm",
 	} as const;
 	const keyHints = {
 		"tui.select.up": "ctrl+t",
 		"tui.select.down": "ctrl+a",
+		"tui.select.pageUp": "pageUp",
+		"tui.select.pageDown": "pageDown",
 		"tui.select.confirm": "tab",
 		"tui.select.cancel": "alt+m",
 	} as const;
@@ -333,10 +341,27 @@ assert.deepEqual(
 }
 
 {
+	const messages = Array.from({ length: 12 }, (_, index) => copyableMessage(`a${index}`, "assistant", `message ${index}`, index));
+	const state = new CopyMessagePickerState(messages);
+	const pageBindings = {
+		matches: (data: string, id: string) =>
+			(data === "P" && id === "tui.select.pageUp") || (data === "N" && id === "tui.select.pageDown"),
+		getKeys: () => [],
+	} as never;
+
+	assert.equal(state.handleInput("P", pageBindings), "render");
+	assert.equal(state.selectedMessage()?.id, "a3");
+	assert.equal(state.handleInput("N", pageBindings), "render");
+	assert.equal(state.selectedMessage()?.id, "a11");
+}
+
+{
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
 	const keys = {
 		"tui.select.up": ["up", "ctrl+p", "alt+k"],
 		"tui.select.down": ["down", "ctrl+n", "alt+j"],
+		"tui.select.pageUp": ["pageUp"],
+		"tui.select.pageDown": ["pageDown"],
 		"tui.select.confirm": ["enter", "space"],
 		"tui.select.cancel": ["escape", "ctrl+c"],
 	} as const;
@@ -360,6 +385,8 @@ assert.deepEqual(
 	const keys = {
 		"tui.select.up": ["ctrl+shift+alt+super+backspace"],
 		"tui.select.down": ["shift+ctrl+alt+super+backspace"],
+		"tui.select.pageUp": ["pageUp"],
+		"tui.select.pageDown": ["pageDown"],
 		"tui.select.confirm": ["alt+super+shift+ctrl+backspace"],
 		"tui.select.cancel": ["super+alt+shift+ctrl+backspace"],
 	} as const satisfies Record<string, readonly KeyId[]>;
@@ -394,10 +421,24 @@ assert.deepEqual(
 	const messages = Array.from({ length: 12 }, (_, index) => copyableMessage(`a${index}`, "assistant", `raw assistant message ${index}`, index));
 	const state = new CopyMessagePickerState(messages);
 
+	assert.equal(state.handleInput("\x1b[5~"), "render");
+	assert.equal(state.selectedMessage()?.text, "raw assistant message 3");
+	assert.equal(state.handleInput("\x1b[6~"), "render");
+	assert.equal(state.selectedMessage()?.text, "raw assistant message 11");
+	assert.equal(state.handleInput("\x1b[1;5H"), "render");
+	assert.equal(state.selectedMessage()?.text, "raw assistant message 0");
+	assert.equal(state.handleInput("\x1b[1;5F"), "render");
+	assert.equal(state.selectedMessage()?.text, "raw assistant message 11");
+	assert.equal(state.handleInput("\x1b[5;5~"), "render");
+	assert.equal(state.selectedMessage()?.text, "raw assistant message 3");
+	assert.equal(state.handleInput("\x1b[6;5~"), "render");
+	assert.equal(state.selectedMessage()?.text, "raw assistant message 11");
 	state.handleInput("\x1b[A");
 	state.handleInput("\x1b[A");
 	assert.equal(state.selectedMessage()?.text, "raw assistant message 9");
-	press(state, "message 3");
+	assert.equal(state.handleInput("\x1b[109u"), "render");
+	assert.equal(state.search, "m");
+	press(state, "essage 3");
 	assert.equal(state.selectedMessage()?.text, "raw assistant message 3");
 	press(state, "\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f");
 	assert.equal(state.search, "");
