@@ -341,6 +341,19 @@ assert.deepEqual(
 }
 
 {
+	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
+	const keybindings = {
+		matches: (data: string, id: string) => data === "\t" && id === "tui.select.pageUp",
+		getKeys: () => [],
+	} as never;
+
+	const hints = state.render(120, plainTheme, keybindings).at(-2) ?? "";
+	assert.doesNotMatch(hints, /Tab peek/);
+	assert.equal(state.handleInput("\t", keybindings), "render");
+	assert.equal(state.peek, false);
+}
+
+{
 	const messages = Array.from({ length: 12 }, (_, index) => copyableMessage(`a${index}`, "assistant", `message ${index}`, index));
 	const state = new CopyMessagePickerState(messages);
 	const pageBindings = {

@@ -379,6 +379,8 @@ function helpLines(width: number, keybindings?: PickerKeybindings, tuiMode: TuiM
 		!keybindings ||
 		!(keybindings.matches(data, "tui.select.up") ||
 			keybindings.matches(data, "tui.select.down") ||
+			keybindings.matches(data, "tui.select.pageUp") ||
+			keybindings.matches(data, "tui.select.pageDown") ||
 			keybindings.matches(data, "tui.select.confirm") ||
 			keybindings.matches(data, "tui.select.cancel"));
 	const peek = available("\t") ? "Tab peek" : undefined;
