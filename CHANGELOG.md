@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 - 2026-08-17
 
 - Add an `Alt+C` picker filter and `MessageVisibility.showCustom` option for showing or hiding custom messages.
 - Hide picker shortcut hints that collide with configured selection bindings.
