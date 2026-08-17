@@ -488,7 +488,7 @@ export class CopyMessagePickerState {
 		const position = this.visibleMessages.length === 0 ? "0/0" : `${this.selectedIndex + 1}/${this.visibleMessages.length}`;
 		const filters = [userState, assistantState, toolState];
 		if (hasCustomMessages) filters.push(filterLabel(theme, "custom", this.visibility.showCustom, "dim"));
-		lines.push([theme.fg("dim", `(${position})`), ...filters, formatState, searchState].join(" · "));
+		lines.push([theme.fg("dim", `(${position})`), ...filters, searchState, formatState].join(" · "));
 		lines.push("");
 		lines.push(...helpLines(width, keybindings, tuiMode, hasCustomMessages).map((line) => hotkeyHint(theme, line)));
 		lines.push("");

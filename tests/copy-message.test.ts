@@ -280,6 +280,10 @@ assert.deepEqual(
 	assert.match(state.render(134, plainTheme).at(-2) ?? "", /Alt\+C custom/);
 	assert.equal(state.handleInput("\x1bc"), "render");
 	assert.deepEqual(state.visibleMessages, []);
+
+	const narrowState = new CopyMessagePickerState([copyableMessage("c0", "custom", "custom", 0)]);
+	press(narrowState, "abcdefghij");
+	assert.match(narrowState.render(80, plainTheme).join("\n"), /search “abcdefghij”/);
 }
 
 {

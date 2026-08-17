@@ -117,7 +117,7 @@ Copy with role and timestamp metadata instead of raw text only:
 - General search does not match timestamps; use `time:<term>` when you want to search by displayed time.
 - Filter labels honor the active pi theme.
 - Selection key hints show the active Pi bindings. Configured selection actions take precedence if they collide with the picker's filter, preview, or format shortcuts.
-- Custom messages with `display: false` are excluded in both current `custom_message` entries and legacy message-wrapped entries; visible ones can be toggled with `Alt+C`.
+- Only custom messages with `display: true` can appear or be copied from current `custom_message` entries or legacy message-wrapped entries; visible ones can be toggled with `Alt+C`.
 - Copy notifications include the role and a short preview so you can verify what was copied.
 - `/copy-message latest` and numbered selectors include user, assistant, and visible custom messages by default while hiding tool/bash messages. `Alt+C` only affects the picker. If only hidden messages exist, `latest` falls back to the newest message so the command still does something useful.
 - `/copy-message` with no direct selector requires interactive TUI mode because the picker is a custom TUI component.
