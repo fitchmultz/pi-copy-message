@@ -393,7 +393,7 @@ function helpLines(width: number, keybindings: PickerKeybindings | undefined, tu
 	].filter(({ data }) => available(data));
 	const filterHint = filters.length > 0 ? `Ctrl+${filters.map(({ hint }) => hint).join("/")} filters` : undefined;
 	const custom = hasCustomMessages && available("\x1b[99;3u") ? "Alt+C custom" : undefined;
-	const meta = available("\x1bm") ? "Alt+M meta" : undefined;
+	const meta = available("\x1b[109;3u") ? "Alt+M meta" : undefined;
 	const jumps = (tuiMode === "fullscreen"
 		? [
 				{ hint: "Ctrl+Home", data: "\x1b[1;5H" },
@@ -464,7 +464,6 @@ export class CopyMessagePickerState {
 		const userState = filterLabel(theme, "user", this.visibility.showUser, "warning");
 		const assistantState = filterLabel(theme, "assistant", this.visibility.showAssistant, "accent");
 		const toolState = filterLabel(theme, "tools", this.visibility.showTools, "dim");
-		const customState = filterLabel(theme, "custom", this.visibility.showCustom, "dim");
 		const searchState = this.search ? theme.fg("accent", `search “${this.search}”`) : theme.fg("dim", "type to filter");
 		const formatState = theme.fg(this.format === "metadata" ? "accent" : "dim", this.format === "metadata" ? "copy metadata" : "copy raw");
 
@@ -488,7 +487,7 @@ export class CopyMessagePickerState {
 
 		const position = this.visibleMessages.length === 0 ? "0/0" : `${this.selectedIndex + 1}/${this.visibleMessages.length}`;
 		const filters = [userState, assistantState, toolState];
-		if (hasCustomMessages) filters.push(customState);
+		if (hasCustomMessages) filters.push(filterLabel(theme, "custom", this.visibility.showCustom, "dim"));
 		lines.push([theme.fg("dim", `(${position})`), ...filters, formatState, searchState].join(" · "));
 		lines.push("");
 		lines.push(...helpLines(width, keybindings, tuiMode, hasCustomMessages).map((line) => hotkeyHint(theme, line)));

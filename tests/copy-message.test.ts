@@ -321,7 +321,7 @@ assert.deepEqual(
 		"tui.select.pageUp": "\x1b[5~",
 		"tui.select.pageDown": "\x1b[6~",
 		"tui.select.confirm": "\t",
-		"tui.select.cancel": "\x1bm",
+		"tui.select.cancel": "\x1b[109;3u",
 	} as const;
 	const keyHints = {
 		"tui.select.up": "ctrl+t",
@@ -345,7 +345,7 @@ assert.deepEqual(
 	assert.equal(state.visibility.showAssistant, true);
 	assert.equal(state.handleInput("\t", keybindings), "copy");
 	assert.equal(state.peek, false);
-	assert.equal(state.handleInput("\x1bm", keybindings), "cancel");
+	assert.equal(state.handleInput("\x1b[109;3u", keybindings), "cancel");
 	assert.equal(state.format, "raw");
 
 	const hints60 = state.render(60, plainTheme, keybindings).at(-2) ?? "";
@@ -369,13 +369,16 @@ assert.deepEqual(
 
 {
 	const state = new CopyMessagePickerState([copyableMessage("c0", "custom", "custom", 0)]);
-	const keybindings = new KeybindingsManager(TUI_KEYBINDINGS, { "tui.select.cancel": "alt+c" });
+	const keybindings = new KeybindingsManager(TUI_KEYBINDINGS, { "tui.select.cancel": ["alt+c", "alt+m"] });
 	const kittyAltC = "\x1b[99;3u";
+	const kittyAltM = "\x1b[109;3u";
 	setKittyProtocolActive(true);
 	try {
 		assert.equal(state.handleInput(kittyAltC, keybindings), "cancel");
 		assert.equal(state.visibility.showCustom, true);
-		assert.doesNotMatch(state.render(180, plainTheme, keybindings).at(-2) ?? "", /Alt\+C custom/);
+		assert.equal(state.handleInput(kittyAltM, keybindings), "cancel");
+		assert.equal(state.format, "raw");
+		assert.doesNotMatch(state.render(180, plainTheme, keybindings).at(-2) ?? "", /Alt\+[CM]/);
 	} finally {
 		setKittyProtocolActive(false);
 	}
