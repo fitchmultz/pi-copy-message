@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add an `Alt+C` picker filter for showing or hiding custom messages.
+
 ## 2.0.0 - 2026-08-06
 
 - Set pi 0.84.0 as the minimum supported version and refresh the local coding-agent and TUI development baseline.

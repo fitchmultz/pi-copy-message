@@ -241,12 +241,14 @@ export interface MessageVisibility {
 	showAssistant: boolean;
 	showUser: boolean;
 	showTools: boolean;
+	showCustom?: boolean;
 }
 
 function isVisibleMessage(message: CopyableMessage, visibility: MessageVisibility): boolean {
 	if (isToolMessage(message)) return visibility.showTools;
 	if (message.role === "assistant") return visibility.showAssistant;
 	if (message.role === "user") return visibility.showUser;
+	if (message.role === "custom") return visibility.showCustom !== false;
 	return true;
 }
 
@@ -390,6 +392,7 @@ function helpLines(width: number, keybindings?: PickerKeybindings, tuiMode: TuiM
 		{ hint: "T", data: "\x14" },
 	].filter(({ data }) => available(data));
 	const filterHint = filters.length > 0 ? `Ctrl+${filters.map(({ hint }) => hint).join("/")} filters` : undefined;
+	const custom = available("\x1bc") ? "Alt+C custom" : undefined;
 	const meta = available("\x1bm") ? "Alt+M meta" : undefined;
 	const jumps = (tuiMode === "fullscreen"
 		? [
@@ -415,7 +418,7 @@ function helpLines(width: number, keybindings?: PickerKeybindings, tuiMode: TuiM
 		return lines;
 	}
 
-	for (const hint of width < 74 ? [jumpHint, peek, filterHint, meta] : ["type search", jumpHint, peek, filterHint, meta]) {
+	for (const hint of width < 74 ? [jumpHint, peek, filterHint, custom, meta] : ["type search", jumpHint, peek, filterHint, custom, meta]) {
 		if (hint && visibleWidth(join(...optional, hint, ...core)) <= width) optional.push(hint);
 	}
 
@@ -429,6 +432,7 @@ export class CopyMessagePickerState {
 		showAssistant: true,
 		showUser: true,
 		showTools: false,
+		showCustom: true,
 	};
 	search = "";
 	visibleMessages: CopyableMessage[];
@@ -459,6 +463,7 @@ export class CopyMessagePickerState {
 		const userState = filterLabel(theme, "user", this.visibility.showUser, "warning");
 		const assistantState = filterLabel(theme, "assistant", this.visibility.showAssistant, "accent");
 		const toolState = filterLabel(theme, "tools", this.visibility.showTools, "dim");
+		const customState = filterLabel(theme, "custom", this.visibility.showCustom !== false, "dim");
 		const searchState = this.search ? theme.fg("accent", `search “${this.search}”`) : theme.fg("dim", "type to filter");
 		const formatState = theme.fg(this.format === "metadata" ? "accent" : "dim", this.format === "metadata" ? "copy metadata" : "copy raw");
 
@@ -481,7 +486,7 @@ export class CopyMessagePickerState {
 		}
 
 		const position = this.visibleMessages.length === 0 ? "0/0" : `${this.selectedIndex + 1}/${this.visibleMessages.length}`;
-		lines.push(`${theme.fg("dim", `(${position})`)} · ${userState} · ${assistantState} · ${toolState} · ${formatState} · ${searchState}`);
+		lines.push(`${theme.fg("dim", `(${position})`)} · ${userState} · ${assistantState} · ${toolState} · ${customState} · ${formatState} · ${searchState}`);
 		lines.push("");
 		lines.push(...helpLines(width, keybindings, tuiMode).map((line) => hotkeyHint(theme, line)));
 		lines.push("");
@@ -511,6 +516,11 @@ export class CopyMessagePickerState {
 		if (keybindings?.matches(data, "tui.select.cancel")) return "cancel";
 		if (matchesKey(data, "ctrl+t")) {
 			this.visibility.showTools = !this.visibility.showTools;
+			this.refreshMessages();
+			return "render";
+		}
+		if (matchesKey(data, "alt+c")) {
+			this.visibility.showCustom = !this.visibility.showCustom;
 			this.refreshMessages();
 			return "render";
 		}

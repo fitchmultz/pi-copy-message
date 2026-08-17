@@ -177,6 +177,7 @@ assert.deepEqual(
 	];
 	assert.equal(latestDefaultMessage(messages)?.text, "raw assistant message");
 	assert.equal(latestDefaultMessage([copyableMessage("t0", "toolResult", "only tool message", 0)])?.text, "only tool message");
+	assert.equal(latestDefaultMessage([copyableMessage("c0", "custom", "custom message", 0)])?.text, "custom message");
 }
 
 {
@@ -184,11 +185,13 @@ assert.deepEqual(
 		copyableMessage("u0", "user", "first user", 0),
 		copyableMessage("t0", "toolResult", "hidden tool", 1),
 		copyableMessage("a0", "assistant", "second assistant", 2),
+		copyableMessage("c0", "custom", "third custom", 3),
 	];
-	assert.deepEqual(defaultVisibleMessages(messages).map((message) => message.id), ["u0", "a0"]);
+	assert.deepEqual(defaultVisibleMessages(messages).map((message) => message.id), ["u0", "a0", "c0"]);
 	assert.equal(messageByDefaultNumber(messages, 1)?.id, "u0");
 	assert.equal(messageByDefaultNumber(messages, 2)?.id, "a0");
-	assert.equal(messageByDefaultNumber(messages, 3), undefined);
+	assert.equal(messageByDefaultNumber(messages, 3)?.id, "c0");
+	assert.equal(messageByDefaultNumber(messages, 4), undefined);
 }
 
 {
@@ -257,6 +260,24 @@ assert.deepEqual(
 	assert.equal(state.peek, true);
 	assert.ok(state.render(60, plainTheme).some((line) => line.includes("Peek metadata assistant message")));
 	assert.equal(state.handleInput("\r"), "copy");
+}
+
+{
+	const state = new CopyMessagePickerState([
+		copyableMessage("u0", "user", "user text", 0),
+		copyableMessage("c0", "custom", "custom text", 1),
+	]);
+
+	assert.equal(state.visibility.showCustom, true);
+	assert.equal(state.selectedMessage()?.id, "c0");
+	assert.equal(state.handleInput("\x1bc"), "render");
+	assert.equal(state.visibility.showCustom, false);
+	assert.deepEqual(state.visibleMessages.map((message) => message.id), ["u0"]);
+	assert.match(state.render(180, plainTheme).join("\n"), /custom —/);
+	assert.equal(state.handleInput("\x1bc"), "render");
+	press(state, "custom");
+	assert.deepEqual(state.visibleMessages.map((message) => message.id), ["c0"]);
+	assert.match(state.render(180, plainTheme).at(-2) ?? "", /Alt\+C custom/);
 }
 
 {
@@ -338,6 +359,18 @@ assert.deepEqual(
 	assert.doesNotMatch(hints60, /type search|Ctrl\+U filters/);
 	assert.match(hints80, /type search/);
 	assert.doesNotMatch(hints80, /Home\/End jump|Ctrl\+U filters/);
+}
+
+{
+	const state = new CopyMessagePickerState([copyableMessage("c0", "custom", "custom", 0)]);
+	const keybindings = {
+		matches: (data: string, id: string) => data === "\x1bc" && id === "tui.select.cancel",
+		getKeys: () => [],
+	} as never;
+
+	assert.equal(state.handleInput("\x1bc", keybindings), "cancel");
+	assert.equal(state.visibility.showCustom, true);
+	assert.doesNotMatch(state.render(180, plainTheme, keybindings).at(-2) ?? "", /Alt\+C custom/);
 }
 
 {
