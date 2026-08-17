@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { type KeyId, visibleWidth } from "@earendil-works/pi-tui";
+import { type KeyId, KeybindingsManager, setKittyProtocolActive, TUI_KEYBINDINGS, visibleWidth } from "@earendil-works/pi-tui";
 
 import extension, {
 	collectCopyableMessages,
@@ -203,21 +203,21 @@ assert.deepEqual(
 	];
 
 	assert.deepEqual(
-		filteredMessages(messages, { showAssistant: true, showUser: true, showTools: false }).map((message) => message.id),
+		filteredMessages(messages, { showAssistant: true, showUser: true, showTools: false, showCustom: true }).map((message) => message.id),
 		["u0", "a0", "a1"],
 	);
 	assert.deepEqual(
-		filteredMessages(messages, { showAssistant: false, showUser: true, showTools: true }, "delta").map((message) => message.id),
+		filteredMessages(messages, { showAssistant: false, showUser: true, showTools: true, showCustom: true }, "delta").map((message) => message.id),
 		["t0"],
 	);
 	assert.deepEqual(
-		filteredMessages([copyableMessage("u0", "user", "alpha", 0)], { showAssistant: true, showUser: true, showTools: true }, "00").map(
+		filteredMessages([copyableMessage("u0", "user", "alpha", 0)], { showAssistant: true, showUser: true, showTools: true, showCustom: true }, "00").map(
 			(message) => message.id,
 		),
 		[],
 	);
 	assert.deepEqual(
-		filteredMessages([copyableMessage("u0", "user", "alpha", 0)], { showAssistant: true, showUser: true, showTools: true }, "time:00").map(
+		filteredMessages([copyableMessage("u0", "user", "alpha", 0)], { showAssistant: true, showUser: true, showTools: true, showCustom: true }, "time:00").map(
 			(message) => message.id,
 		),
 		["u0"],
@@ -277,7 +277,9 @@ assert.deepEqual(
 	assert.equal(state.handleInput("\x1bc"), "render");
 	press(state, "custom");
 	assert.deepEqual(state.visibleMessages.map((message) => message.id), ["c0"]);
-	assert.match(state.render(180, plainTheme).at(-2) ?? "", /Alt\+C custom/);
+	assert.match(state.render(134, plainTheme).at(-2) ?? "", /Alt\+C custom/);
+	assert.equal(state.handleInput("\x1bc"), "render");
+	assert.deepEqual(state.visibleMessages, []);
 }
 
 {
@@ -298,7 +300,11 @@ assert.deepEqual(
 	assert.match(hints80, /enter copy/);
 	assert.match(hints80, /escape\/ctrl\+c cancel/);
 	assert.match(hints80, /type search/);
-	assert.doesNotMatch(hints80, /Home\/End jump|Tab peek|filters|Alt\+M meta/);
+	assert.doesNotMatch(hints80, /Home\/End jump|Tab peek|filters|Alt\+M meta|Alt\+C custom/);
+	press(state, "abcdefghij");
+	const searchedRender = state.render(80, plainTheme).join("\n");
+	assert.match(searchedRender, /search “abcdefghij”/);
+	assert.doesNotMatch(searchedRender, /custom [✓—]/);
 
 	assert.match(fullscreenHints, /Ctrl\+Home\/Ctrl\+End jump/);
 	assert.doesNotMatch(fullscreenHints, /(?:^| · )Home\/End jump/);
@@ -363,14 +369,16 @@ assert.deepEqual(
 
 {
 	const state = new CopyMessagePickerState([copyableMessage("c0", "custom", "custom", 0)]);
-	const keybindings = {
-		matches: (data: string, id: string) => data === "\x1bc" && id === "tui.select.cancel",
-		getKeys: () => [],
-	} as never;
-
-	assert.equal(state.handleInput("\x1bc", keybindings), "cancel");
-	assert.equal(state.visibility.showCustom, true);
-	assert.doesNotMatch(state.render(180, plainTheme, keybindings).at(-2) ?? "", /Alt\+C custom/);
+	const keybindings = new KeybindingsManager(TUI_KEYBINDINGS, { "tui.select.cancel": "alt+c" });
+	const kittyAltC = "\x1b[99;3u";
+	setKittyProtocolActive(true);
+	try {
+		assert.equal(state.handleInput(kittyAltC, keybindings), "cancel");
+		assert.equal(state.visibility.showCustom, true);
+		assert.doesNotMatch(state.render(180, plainTheme, keybindings).at(-2) ?? "", /Alt\+C custom/);
+	} finally {
+		setKittyProtocolActive(false);
+	}
 }
 
 {

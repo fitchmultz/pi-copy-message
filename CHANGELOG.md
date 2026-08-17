@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add an `Alt+C` picker filter for showing or hiding custom messages.
+- Hide picker shortcut hints that collide with configured selection bindings.
 
 ## 2.0.0 - 2026-08-06
 
