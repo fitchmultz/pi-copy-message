@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.1 - 2026-08-25
+
+- Reuse Pi's clipboard implementation instead of maintaining a duplicate command runner, enabling Pi's OSC 52 fallback on Android/Termux.
+
 ## 2.1.0 - 2026-08-17
 
 - Add an `Alt+C` picker filter and `MessageVisibility.showCustom` option for showing or hiding custom messages.

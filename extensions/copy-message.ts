@@ -1,5 +1,4 @@
-import { spawnSync } from "node:child_process";
-import type { ExtensionAPI, ExtensionCommandContext, KeybindingsManager } from "@earendil-works/pi-coding-agent";
+import { copyToClipboard, type ExtensionAPI, type ExtensionCommandContext, type KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem, TuiMode } from "@earendil-works/pi-tui";
 import { decodeKittyPrintable, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
@@ -179,58 +178,6 @@ export function getMostRecentUserMessage(ctx: { sessionManager: { getBranch(): u
 	}
 
 	return sawUserMessage ? { kind: "no-text" } : { kind: "no-user-message" };
-}
-
-type ClipboardCommand = {
-	name: string;
-	args: string[];
-	enabled: () => boolean;
-};
-
-const clipboardCommands: ClipboardCommand[] = [
-	{ name: "pbcopy", args: [], enabled: () => process.platform === "darwin" },
-	{ name: "termux-clipboard-set", args: [], enabled: () => Boolean(process.env.TERMUX_VERSION) },
-	{ name: "wl-copy", args: [], enabled: () => true },
-	{ name: "xclip", args: ["-selection", "clipboard"], enabled: () => true },
-	{ name: "xsel", args: ["--clipboard", "--input"], enabled: () => true },
-];
-
-const CLIPBOARD_TIMEOUT_MS = 3000;
-const commandExistsCache = new Map<string, boolean>();
-
-function commandExists(command: string): boolean {
-	const cached = commandExistsCache.get(command);
-	if (cached !== undefined) return cached;
-
-	const result = spawnSync("sh", ["-c", "command -v \"$1\" >/dev/null 2>&1", "sh", command], {
-		stdio: "ignore",
-		timeout: CLIPBOARD_TIMEOUT_MS,
-		killSignal: "SIGKILL",
-	});
-	const exists = result.status === 0;
-	commandExistsCache.set(command, exists);
-	return exists;
-}
-
-function copyWith(command: string, args: string[], text: string): boolean {
-	const result = spawnSync(command, args, { input: text, encoding: "utf8", timeout: CLIPBOARD_TIMEOUT_MS, killSignal: "SIGKILL" });
-	return !result.error && result.status === 0;
-}
-
-function copyToClipboard(text: string): string | undefined {
-	const failedCommands: string[] = [];
-
-	for (const command of clipboardCommands) {
-		if (!command.enabled() || !commandExists(command.name)) continue;
-		if (copyWith(command.name, command.args, text)) return undefined;
-		failedCommands.push(command.name);
-	}
-
-	if (failedCommands.length > 0) {
-		return `Clipboard command${failedCommands.length === 1 ? "" : "s"} failed (${failedCommands.join(", ")})`;
-	}
-
-	return "No clipboard command found (tried pbcopy, termux-clipboard-set, wl-copy, xclip, xsel)";
 }
 
 function isToolMessage(message: CopyableMessage): boolean {
@@ -708,17 +655,16 @@ function copyNotificationText(selected: CopyableMessage): string {
 	return `Copied ${roleLabel(selected.role)} message: “${compactPreview(selected.text, 48)}”`;
 }
 
-function copySelectedMessage(ctx: Pick<ExtensionCommandContext, "ui">, selected: CopyableMessage, text = selected.text) {
-	const error = copyToClipboard(text);
-	if (error) {
-		ctx.ui.notify(error, "error");
-		return;
+async function copySelectedMessage(ctx: Pick<ExtensionCommandContext, "ui">, selected: CopyableMessage, text = selected.text) {
+	try {
+		await copyToClipboard(text);
+		ctx.ui.notify(copyNotificationText(selected), "info");
+	} catch (error) {
+		ctx.ui.notify(error instanceof Error ? error.message : "Failed to copy to clipboard", "error");
 	}
-
-	ctx.ui.notify(copyNotificationText(selected), "info");
 }
 
-function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionManager" | "ui">, format: CopyFormat) {
+async function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionManager" | "ui">, format: CopyFormat) {
 	const result = getMostRecentUserMessage(ctx);
 	if (result.kind === "no-user-message") {
 		ctx.ui.notify("No user messages found", "warning");
@@ -729,7 +675,7 @@ function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionMa
 		return;
 	}
 
-	copySelectedMessage(ctx, result.message, formatMessageForCopy(result.message, format));
+	await copySelectedMessage(ctx, result.message, formatMessageForCopy(result.message, format));
 }
 
 export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCommand">) {
@@ -746,7 +692,7 @@ export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCom
 
 			if (parsedArgs.selector === "latest") {
 				const latestVisible = latestDefaultMessage(messages);
-				if (latestVisible) copySelectedMessage(ctx, latestVisible, formatMessageForCopy(latestVisible, parsedArgs.format));
+				if (latestVisible) await copySelectedMessage(ctx, latestVisible, formatMessageForCopy(latestVisible, parsedArgs.format));
 				return;
 			}
 
@@ -756,7 +702,7 @@ export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCom
 					ctx.ui.notify(`No default visible message #${parsedArgs.selector.number} (found ${defaultVisibleMessages(messages).length})`, "warning");
 					return;
 				}
-				copySelectedMessage(ctx, selected, formatMessageForCopy(selected, parsedArgs.format));
+				await copySelectedMessage(ctx, selected, formatMessageForCopy(selected, parsedArgs.format));
 				return;
 			}
 
@@ -768,7 +714,7 @@ export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCom
 			const selected = await pickMessage(ctx, messages, parsedArgs.format);
 			if (!selected) return;
 
-			copySelectedMessage(ctx, selected.message, selected.text);
+			await copySelectedMessage(ctx, selected.message, selected.text);
 		},
 	});
 
@@ -776,7 +722,7 @@ export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCom
 		description: "Copy the most recent user message to the clipboard",
 		getArgumentCompletions: (argumentPrefix) => copyArgumentCompletions(argumentPrefix, false),
 		handler: async (args, ctx) => {
-			copyMostRecentUserMessage(ctx, parseCopyArgs(args).format);
+			await copyMostRecentUserMessage(ctx, parseCopyArgs(args).format);
 		},
 	});
 }

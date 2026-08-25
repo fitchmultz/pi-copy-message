@@ -16,6 +16,7 @@ A [pi](https://github.com/earendil-works/pi-mono) extension that adds `/copy-mes
 - Supports type-to-filter search across role and message text, with `time:<term>` for timestamp search
 - Supports Home/End jumps for oldest/newest visible messages
 - Uses Pi's configured selection bindings for navigation, copy, and cancel
+- Uses Pi's clipboard implementation, including its OSC 52 terminal fallback
 - Includes fast paths: `/copy-message latest`, `/copy-message last`, and `/copy-message newest`
 - Supports direct numbered copies like `/copy-message 3`
 - Supports metadata copies with `--with-meta`, `--with-metadata`, or `--with-role`
@@ -126,6 +127,7 @@ Copy with role and timestamp metadata instead of raw text only:
 ## Compatibility
 
 - Requires and is tested with Pi 0.84.0 or later
+- Android/Termux clipboard writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable.
 - Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
 - Supported Node.js range for local repo tooling: `>=22.19.0`
 - `.nvmrc` pins Node 22.19.0 for local development
