@@ -35,11 +35,7 @@ Or install it directly from GitHub with pi:
 pi install https://github.com/fitchmultz/pi-copy-message
 ```
 
-Then reload pi from inside the app:
-
-```text
-/reload
-```
+Restart Pi after installing or updating extension code or dependencies. The maintained fork's `/reload` refreshes resources and reinitializes cached code; it does not apply code updates.
 
 If you prefer to load it directly from a local checkout during development:
 
@@ -126,7 +122,7 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Requires and is tested with Pi 0.84.0 or later
+- Declared Pi floor: 0.84.0. Current development qualification baseline: official 0.86.1 (not a claim that every later release has been tested).
 - Android/Termux clipboard writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable.
 - Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
 - Supported Node.js range for local repo tooling: `>=22.19.0`
@@ -138,8 +134,10 @@ This package keeps pi core packages as wildcard peers (`*`) per pi package guida
 
 ```bash
 npm install
-npm run check
+npm run check:compat # existing behavior tests + typecheck + pack dry-run
 ```
+
+No production build or `prepare` is required. Qualification uses the selected host installed in this checkout's dependency graph. The tests cover picker behavior and formatting without clipboard writes; native clipboard delivery, including Android/Termux and OSC 52, requires separate platform qualification.
 
 Key files:
 
