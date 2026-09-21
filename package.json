@@ -35,6 +35,7 @@
     "test": "tsx tests/copy-message.test.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm test && npm run typecheck",
+    "check:compat": "npm run check && npm pack --dry-run",
     "prepublishOnly": "npm run check && npm pack --dry-run"
   },
   "files": [
@@ -44,8 +45,8 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.0",
-    "@earendil-works/pi-tui": "0.84.0",
+    "@earendil-works/pi-coding-agent": "0.86.1",
+    "@earendil-works/pi-tui": "0.86.1",
     "@types/node": "^25.9.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
