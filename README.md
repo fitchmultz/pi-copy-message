@@ -122,7 +122,7 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Declared Pi floor: 0.84.0. Current development qualification baseline: official 0.86.1 (not a claim that every later release has been tested).
+- Declared Pi floor: 0.84.0. Current development qualification baseline: official 0.87.0 (not a claim that every later release has been tested).
 - Android/Termux clipboard writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable.
 - Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
 - Supported Node.js range for local repo tooling: `>=22.19.0`
