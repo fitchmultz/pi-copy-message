@@ -46,6 +46,29 @@ const plainTheme = {
 	bold: (text: string) => text,
 } as never;
 
+{
+	const messages = [
+		copyableMessage("a0", "assistant", "invoice 123", 0),
+		copyableMessage("a1", "assistant", "unrelated newest answer", 1),
+	];
+	const keybindings = new KeybindingsManager(TUI_KEYBINDINGS);
+	const state = new CopyMessagePickerState(messages);
+	assert.equal(state.handleInput("\x1b[200~invoice\x1b[201~", keybindings), "render");
+	assert.equal(state.search, "invoice");
+	assert.equal(state.selectedCopyText(), "invoice 123");
+	assert.equal(state.handleInput("\r", keybindings), "copy");
+
+	// Pasting multiple lines adds search terms without submitting the picker.
+	assert.equal(state.handleInput("\x1b[200~\r\n123\x1b[201~", keybindings), "render");
+	assert.equal(state.search, "invoice 123");
+	assert.equal(state.selectedCopyText(), "invoice 123");
+
+	// Clipboard control characters must not trigger picker shortcuts.
+	assert.equal(state.handleInput("\x1b[200~\x14\x1b[201~", keybindings), "none");
+	assert.equal(state.visibility.showTools, false);
+	assert.equal(state.search, "invoice 123");
+}
+
 const registrations = captureRegisteredCommands();
 assert.deepEqual([...registrations.keys()], ["copy-message", "copy-user"]);
 assert.equal(registrations.get("copy-user")?.description, "Copy the most recent user message to the clipboard");
