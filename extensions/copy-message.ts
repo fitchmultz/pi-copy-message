@@ -1,6 +1,6 @@
 import { copyToClipboard, type ExtensionAPI, type ExtensionCommandContext, type KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem, TuiMode } from "@earendil-works/pi-tui";
-import { decodeKittyPrintable, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { decodeKittyPrintable, matchesKey, stripTerminalSequences, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 const MAX_VISIBLE_MESSAGES = 8;
 const MAX_PEEK_LINES = 16;
@@ -73,8 +73,12 @@ function truncateGraphemes(text: string, max: number): string {
 	return `${graphemes.slice(0, max - 1).join("")}…`;
 }
 
+function safeDisplayText(text: string): string {
+	return stripTerminalSequences(text).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, "");
+}
+
 function compactPreview(text: string, max = 96): string {
-	const preview = text.replace(/\s+/gu, " ").trim();
+	const preview = safeDisplayText(text).replace(/\s+/gu, " ").trim();
 	return truncateGraphemes(preview, max);
 }
 
@@ -300,7 +304,7 @@ function renderMessageLine(
 
 function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMessageTheme, format: CopyFormat): string[] {
 	const contentWidth = Math.max(1, width - 2);
-	const text = formatMessageForCopy(message, format);
+	const text = safeDisplayText(formatMessageForCopy(message, format));
 	const wrapped = wrapTextWithAnsi(styleRoleText(theme, message.role, text, false), contentWidth);
 	const shown = wrapped.slice(0, MAX_PEEK_LINES);
 	const remaining = wrapped.length - shown.length;
