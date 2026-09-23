@@ -141,7 +141,28 @@ function entryToCopyableMessage(entry: unknown): CopyableMessage | undefined {
 }
 
 export function collectCopyableMessages(ctx: { sessionManager: { getBranch(): unknown[] } }): CopyableMessage[] {
-	return ctx.sessionManager.getBranch().flatMap((entry) => {
+	const entries: unknown[] = [];
+	// Pi may persist multiple snapshots of one assistant response before its final message.
+	const responses = new Map<string, { index: number; checkpoint: boolean }>();
+	for (const entry of ctx.sessionManager.getBranch()) {
+		const record = entry as { type?: string; checkpoint?: boolean; message?: { role?: string; responseId?: string } } | null;
+		const responseId =
+			record?.type === "message" && record.message?.role === "assistant" && typeof record.message.responseId === "string"
+				? record.message.responseId
+				: undefined;
+		const previous = responseId ? responses.get(responseId) : undefined;
+		if (previous) {
+			if (record?.checkpoint !== true || previous.checkpoint) {
+				entries[previous.index] = entry;
+				previous.checkpoint = record?.checkpoint === true;
+			}
+			continue;
+		}
+		if (responseId) responses.set(responseId, { index: entries.length, checkpoint: record?.checkpoint === true });
+		entries.push(entry);
+	}
+
+	return entries.flatMap((entry) => {
 		const message = entryToCopyableMessage(entry);
 		return message ? [message] : [];
 	});
