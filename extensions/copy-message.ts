@@ -1,6 +1,6 @@
 import { copyToClipboard, type ExtensionAPI, type ExtensionCommandContext, type KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem, TuiMode } from "@earendil-works/pi-tui";
-import { decodeKittyPrintable, matchesKey, stripTerminalSequences, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { decodeKittyPrintable, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 const MAX_VISIBLE_MESSAGES = 8;
 const MAX_PEEK_LINES = 16;
@@ -74,7 +74,7 @@ function truncateGraphemes(text: string, max: number): string {
 }
 
 function safeDisplayText(text: string): string {
-	return stripTerminalSequences(text).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, "");
+	return text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, "");
 }
 
 function compactPreview(text: string, max = 96): string {
@@ -99,7 +99,7 @@ function roleLabel(role: string): string {
 		case "compactionSummary":
 			return "compaction";
 		default:
-			return role || "message";
+			return safeDisplayText(role).replace(/\s+/gu, " ").trim() || "message";
 	}
 }
 

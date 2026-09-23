@@ -55,6 +55,13 @@ const plainTheme = {
 	assert.doesNotMatch(state.render(120, plainTheme).join("\n"), /\x1b/);
 	state.handleInput("\t");
 	assert.doesNotMatch(state.render(120, plainTheme).join("\n"), /\x1b/);
+
+	const unknownRole = `unrecognized\r${clipboardWrite}`;
+	const messages = collectCopyableMessages({
+		sessionManager: { getBranch: () => [{ type: "message", id: "a1", message: { role: unknownRole, content: "answer" } }] },
+	});
+	const roleState = new CopyMessagePickerState(messages);
+	assert.ok(roleState.render(120, plainTheme).every((line) => !/[\x1b\r\n\t]/.test(line)));
 }
 
 {
