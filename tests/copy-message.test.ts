@@ -191,6 +191,19 @@ assert.deepEqual(collectCopyableMessages(mixedBranch), [
 ]);
 
 {
+	const content = [{ type: "text", text: 'print("sa' }, { type: "text", text: 'fe")' }];
+	const branch = {
+		sessionManager: {
+			getBranch: () => [{ type: "message", id: "u0", message: { role: "user", content } }],
+		},
+	};
+	assert.deepEqual(getMostRecentUserMessage(branch), {
+		kind: "message",
+		message: { id: "u0", role: "user", timestamp: undefined, text: 'print("safe")' },
+	});
+}
+
+{
 	const messages = collectCopyableMessages({
 		sessionManager: {
 			getBranch: () => [
@@ -243,7 +256,7 @@ assert.deepEqual(collectCopyableMessages(mixedBranch), [
 			],
 		},
 	});
-	assert.equal(messageByDefaultNumber(messages, 2)?.text, "First\n\nSecond");
+	assert.equal(messageByDefaultNumber(messages, 2)?.text, "FirstSecond");
 }
 
 {

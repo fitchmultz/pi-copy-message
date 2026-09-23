@@ -32,7 +32,7 @@ function textFromContent(content: unknown): string {
 			);
 		})
 		.map((part) => part.text)
-		.join("\n\n");
+		.join("");
 }
 
 function textFromMessage(message: Record<string, unknown>): string {
