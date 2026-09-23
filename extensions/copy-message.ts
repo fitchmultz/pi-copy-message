@@ -499,7 +499,7 @@ export class CopyMessagePickerState {
 			return "render";
 		}
 		if (matchesKey(data, "backspace") || data === "\x7f") {
-			this.setSearch(this.search.slice(0, -1));
+			this.setSearch(splitGraphemes(this.search).slice(0, -1).join(""));
 			return "render";
 		}
 		const printable = decodeKittyPrintable(data) ?? data;

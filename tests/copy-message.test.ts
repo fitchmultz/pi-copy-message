@@ -70,6 +70,23 @@ const plainTheme = {
 }
 
 const registrations = captureRegisteredCommands();
+{
+	// Backspace removes a whole visible character and restores the unfiltered selection.
+	const messages = [
+		copyableMessage("a0", "assistant", "😀 👨‍👩‍👧‍👦 e\u0301", 0),
+		copyableMessage("a1", "assistant", "ordinary answer", 1),
+	];
+	for (const character of ["😀", "👨‍👩‍👧‍👦", "e\u0301"]) {
+		const state = new CopyMessagePickerState(messages);
+		state.handleInput(character);
+		assert.equal(state.selectedMessage()?.id, "a0");
+		assert.equal(state.handleInput("\x7f"), "render");
+		assert.equal(state.search, "");
+		assert.deepEqual(state.visibleMessages, messages);
+		assert.equal(state.selectedMessage()?.id, "a1");
+	}
+}
+
 assert.deepEqual([...registrations.keys()], ["copy-message", "copy-user"]);
 assert.equal(registrations.get("copy-user")?.description, "Copy the most recent user message to the clipboard");
 assert.equal(typeof registrations.get("copy-user")?.handler, "function");
