@@ -112,6 +112,7 @@ Copy with role and timestamp metadata instead of raw text only:
 - The picker caps visible rows and scrolls instead of filling the screen.
 - Search preserves your original selected message and restores it when the search is cleared.
 - General search does not match timestamps; use `time:<term>` when you want to search by displayed time.
+- Picker previews and copy notifications remove terminal control characters; the copied text stays raw.
 - Filter labels honor the active pi theme.
 - Selection key hints show the active Pi bindings. Configured selection actions take precedence if they collide with the picker's filter, preview, or format shortcuts.
 - Only custom messages with `display: true` can appear or be copied from current `custom_message` entries or legacy message-wrapped entries; visible ones can be toggled with `Alt+C`.

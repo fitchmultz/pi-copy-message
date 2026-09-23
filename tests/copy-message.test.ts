@@ -47,6 +47,24 @@ const plainTheme = {
 } as never;
 
 {
+	const clipboardWrite = `\x1b]52;c;${Buffer.from("injected").toString("base64")}\x07`;
+	const text = `Before ${clipboardWrite}after`;
+	const state = new CopyMessagePickerState([copyableMessage("a0", "assistant", text, 0)]);
+
+	assert.equal(state.selectedCopyText(), text);
+	assert.doesNotMatch(state.render(120, plainTheme).join("\n"), /\x1b/);
+	state.handleInput("\t");
+	assert.doesNotMatch(state.render(120, plainTheme).join("\n"), /\x1b/);
+
+	const unknownRole = `unrecognized\r${clipboardWrite}`;
+	const messages = collectCopyableMessages({
+		sessionManager: { getBranch: () => [{ type: "message", id: "a1", message: { role: unknownRole, content: "answer" } }] },
+	});
+	const roleState = new CopyMessagePickerState(messages);
+	assert.ok(roleState.render(120, plainTheme).every((line) => !/[\x1b\r\n\t]/.test(line)));
+}
+
+{
 	const messages = [
 		copyableMessage("a0", "assistant", "invoice 123", 0),
 		copyableMessage("a1", "assistant", "unrelated newest answer", 1),
