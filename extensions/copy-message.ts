@@ -443,6 +443,13 @@ export class CopyMessagePickerState {
 	}
 
 	handleInput(data: string, keybindings?: PickerKeybindings): PickerInputResult {
+		// Pi delivers each paste as one input wrapped in bracketed-paste markers.
+		if (data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~")) {
+			const text = data.slice(6, -6).replace(/\s+/gu, " ");
+			if (!isPrintableSearchInput(text)) return "none";
+			this.setSearch(this.search + text);
+			return "render";
+		}
 		if (keybindings?.matches(data, "tui.select.up")) {
 			this.move(-1);
 			return "render";

@@ -94,7 +94,7 @@ Copy with role and timestamp metadata instead of raw text only:
 | `Ctrl+PageUp` / `Ctrl+PageDown` | Move by one visible page in fullscreen mode |
 | `Home` / `End` | Jump to oldest/newest visible message in regular mode |
 | `Ctrl+Home` / `Ctrl+End` | Jump to oldest/newest visible message in fullscreen mode |
-| Type text | Filter visible messages |
+| Type or paste text | Filter visible messages; pasted line breaks and tabs become spaces |
 | `time:<term>` | Search timestamps |
 | `Backspace` | Delete one search character |
 | `Ctrl+U` | Toggle user messages |
