@@ -141,7 +141,33 @@ function entryToCopyableMessage(entry: unknown): CopyableMessage | undefined {
 }
 
 export function collectCopyableMessages(ctx: { sessionManager: { getBranch(): unknown[] } }): CopyableMessage[] {
-	return ctx.sessionManager.getBranch().flatMap((entry) => {
+	const entries: unknown[] = [];
+	// Pi persists assistant snapshots separately and coalesces them within each context window.
+	const responses = new Map<string, number>();
+	for (const entry of ctx.sessionManager.getBranch()) {
+		const record = entry as {
+			type?: string;
+			message?: { role?: string; responseId?: string; stopReason?: string; content?: unknown[] };
+		} | null;
+		if (record?.type === "context_window") responses.clear();
+		const responseId =
+			record?.type === "message" && record.message?.role === "assistant" && typeof record.message.responseId === "string"
+				? record.message.responseId
+				: undefined;
+		const previous = responseId ? responses.get(responseId) : undefined;
+		if (previous !== undefined) {
+			const earlier = entries[previous] as typeof record;
+			if (
+				record?.message?.stopReason !== "pending" ||
+				(earlier?.message?.stopReason === "pending" && (earlier.message.content?.length ?? 0) <= (record.message.content?.length ?? 0))
+			) entries[previous] = entry;
+			continue;
+		}
+		if (responseId) responses.set(responseId, entries.length);
+		entries.push(entry);
+	}
+
+	return entries.flatMap((entry) => {
 		const message = entryToCopyableMessage(entry);
 		return message ? [message] : [];
 	});

@@ -190,6 +190,75 @@ assert.deepEqual(collectCopyableMessages(mixedBranch), [
 	{ id: "m0", role: "custom", timestamp: "2026-06-07T00:05:00.000Z", text: "visible custom message text" },
 ]);
 
+{
+	const messages = collectCopyableMessages({
+		sessionManager: {
+			getBranch: () => [
+				{ type: "message", id: "u0", message: { role: "user", content: "Question" } },
+				{
+					type: "message",
+					id: "a0",
+					checkpoint: true,
+					message: { role: "assistant", responseId: "r1", stopReason: "pending", content: [{ type: "text", text: "Draft" }] },
+				},
+				{ type: "message", id: "t0", message: { role: "toolResult", content: [{ type: "text", text: "tool output" }] } },
+				{
+					type: "message",
+					id: "a1",
+					message: { role: "assistant", responseId: "r1", stopReason: "stop", content: [{ type: "text", text: "Final answer" }] },
+				},
+			],
+		},
+	});
+	assert.deepEqual(messages.map(({ id, text }) => [id, text]), [
+		["u0", "Question"],
+		["a1", "Final answer"],
+		["t0", "tool output"],
+	]);
+	assert.equal(messageByDefaultNumber(messages, 2)?.text, "Final answer");
+}
+
+{
+	const messages = collectCopyableMessages({
+		sessionManager: {
+			getBranch: () => [
+				{ type: "message", id: "u0", message: { role: "user", content: "Question" } },
+				{
+					type: "message",
+					id: "a0",
+					checkpoint: true,
+					message: {
+						role: "assistant",
+						responseId: "r1",
+						stopReason: "pending",
+						content: [{ type: "text", text: "First" }, { type: "text", text: "Second" }],
+					},
+				},
+				{
+					type: "message",
+					id: "a1",
+					checkpoint: true,
+					message: { role: "assistant", responseId: "r1", stopReason: "pending", content: [{ type: "text", text: "First" }] },
+				},
+			],
+		},
+	});
+	assert.equal(messageByDefaultNumber(messages, 2)?.text, "First\n\nSecond");
+}
+
+{
+	const messages = collectCopyableMessages({
+		sessionManager: {
+			getBranch: () => [
+				{ type: "message", id: "a0", message: { role: "assistant", responseId: "r1", stopReason: "stop", content: [{ type: "text", text: "Earlier" }] } },
+				{ type: "context_window", id: "w0" },
+				{ type: "message", id: "a1", message: { role: "assistant", responseId: "r1", stopReason: "stop", content: [{ type: "text", text: "Later" }] } },
+			],
+		},
+	});
+	assert.deepEqual(messages.map(({ text }) => text), ["Earlier", "Later"]);
+}
+
 assert.deepEqual(getMostRecentUserMessage(mixedBranch), {
 	kind: "message",
 	message: { id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "raw user text" },
