@@ -55,14 +55,10 @@ function textFromMessage(message: Record<string, unknown>): string {
 	return textFromContent(message.content);
 }
 
-type SegmenterCtor = new (locale?: string, options?: { granularity?: "grapheme" }) => {
-	segment(input: string): Iterable<{ segment: string }>;
-};
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 function splitGraphemes(text: string): string[] {
-	const Segmenter = (Intl as unknown as { Segmenter?: SegmenterCtor }).Segmenter;
-	if (!Segmenter) return Array.from(text);
-	return Array.from(new Segmenter(undefined, { granularity: "grapheme" }).segment(text), (part) => part.segment);
+	return Array.from(graphemeSegmenter.segment(text), (part) => part.segment);
 }
 
 function truncateGraphemes(text: string, max: number): string {
@@ -417,8 +413,10 @@ export class CopyMessagePickerState {
 	format: CopyFormat;
 	peek = false;
 	private searchAnchorId: string | undefined;
+	private readonly messages: CopyableMessage[];
 
-	constructor(private readonly messages: CopyableMessage[], initialFormat: CopyFormat = "raw") {
+	constructor(messages: CopyableMessage[], initialFormat: CopyFormat = "raw") {
+		this.messages = messages;
 		this.format = initialFormat;
 		this.visibleMessages = filteredMessages(messages, this.visibility, this.search);
 		this.selectedIndex = Math.max(0, this.visibleMessages.length - 1);

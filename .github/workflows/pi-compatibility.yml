@@ -1,6 +1,8 @@
 name: Pi compatibility
 
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -32,29 +34,18 @@ jobs:
           ref: ${{ env.PI_AUTOMATION_REF }}
           path: automation
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Use the reviewed npm version
-        run: npm install --global "$(node -p 'require("./automation/package.json").packageManager')"
-      - name: Qualify official Pi
-        run: |
-          official_version=$(node -p 'require("./extension/package.json").devDependencies["@earendil-works/pi-coding-agent"]')
-          node automation/scripts/qualify.mjs --repo pi-copy-message --source "$GITHUB_WORKSPACE/extension" \
-            --host official --target "$official_version" --output "$RUNNER_TEMP/official"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: fitchmultz/pi
           ref: main
           path: fork
           persist-credentials: false
-      - name: Install and hydrate the current fork
-        working-directory: fork
-        run: |
-          npm ci --ignore-scripts
-          npm run hydrate:model-data
-          git diff --exit-code
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Use the automation npm version
+        run: npm install --global "$(node -p 'require("./automation/package.json").packageManager')"
       - name: Build the exact fork revision
         working-directory: fork
         env:
@@ -63,9 +54,19 @@ jobs:
         run: |
           fork_ref=$(git rev-parse HEAD)
           echo "Fork ref: $fork_ref"
+          npm ci --ignore-scripts
+          npm run hydrate:model-data
+          git diff --exit-code
           npm run build:offline
           node ../automation/scripts/pack-fork.mjs . "$RUNNER_TEMP/fork-package" "$fork_ref"
           git diff --exit-code
+      - name: Use the extension npm version
+        run: npm install --global "$(node -p 'require("./extension/package.json").packageManager')"
+      - name: Qualify official Pi
+        run: |
+          official_version=$(node -p 'require("./extension/package.json").devDependencies["@earendil-works/pi-coding-agent"]')
+          node automation/scripts/qualify.mjs --repo pi-copy-message --source "$GITHUB_WORKSPACE/extension" \
+            --host official --target "$official_version" --output "$RUNNER_TEMP/official"
       - name: Qualify the fork
         run: |
           fork_ref=$(git -C fork rev-parse HEAD)

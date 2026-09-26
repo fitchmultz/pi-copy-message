@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type KeyId, KeybindingsManager, setKittyProtocolActive, TUI_KEYBINDINGS, visibleWidth } from "@earendil-works/pi-tui";
@@ -46,7 +48,7 @@ const plainTheme = {
 	bold: (text: string) => text,
 } as never;
 
-{
+test("previews strip terminal control sequences", () => {
 	const clipboardWrite = `\x1b]52;c;${Buffer.from("injected").toString("base64")}\x07`;
 	const text = `Before ${clipboardWrite}after`;
 	const state = new CopyMessagePickerState([copyableMessage("a0", "assistant", text, 0)]);
@@ -62,9 +64,9 @@ const plainTheme = {
 	});
 	const roleState = new CopyMessagePickerState(messages);
 	assert.ok(roleState.render(120, plainTheme).every((line) => !/[\x1b\r\n\t]/.test(line)));
-}
+});
 
-{
+test("bracketed paste extends search without submitting", () => {
 	const messages = [
 		copyableMessage("a0", "assistant", "invoice 123", 0),
 		copyableMessage("a1", "assistant", "unrelated newest answer", 1),
@@ -85,10 +87,10 @@ const plainTheme = {
 	assert.equal(state.handleInput("\x1b[200~\x14\x1b[201~", keybindings), "none");
 	assert.equal(state.visibility.showTools, false);
 	assert.equal(state.search, "invoice 123");
-}
+});
 
 const registrations = captureRegisteredCommands();
-{
+test("backspace deletes whole graphemes and restores selection", () => {
 	// Backspace removes a whole visible character and restores the unfiltered selection.
 	const messages = [
 		copyableMessage("a0", "assistant", "😀 👨‍👩‍👧‍👦 e\u0301", 0),
@@ -103,15 +105,17 @@ const registrations = captureRegisteredCommands();
 		assert.deepEqual(state.visibleMessages, messages);
 		assert.equal(state.selectedMessage()?.id, "a1");
 	}
-}
+});
 
-assert.deepEqual([...registrations.keys()], ["copy-message", "copy-user"]);
-assert.equal(registrations.get("copy-user")?.description, "Copy the most recent user message to the clipboard");
-assert.equal(typeof registrations.get("copy-user")?.handler, "function");
-assert.equal(registrations.get("copy-message")?.description, "Select a session message and copy its text to the clipboard");
-assert.equal(typeof registrations.get("copy-message")?.handler, "function");
+test("registers copy-message and copy-user", () => {
+	assert.deepEqual([...registrations.keys()], ["copy-message", "copy-user"]);
+	assert.equal(registrations.get("copy-user")?.description, "Copy the most recent user message to the clipboard");
+	assert.equal(typeof registrations.get("copy-user")?.handler, "function");
+	assert.equal(registrations.get("copy-message")?.description, "Select a session message and copy its text to the clipboard");
+	assert.equal(typeof registrations.get("copy-message")?.handler, "function");
+});
 
-{
+test("argument completions", () => {
 	// argument completion helper
 	assert.deepEqual(copyArgumentCompletions("", true), [
 		{ value: "latest", label: "latest" },
@@ -149,7 +153,7 @@ assert.equal(typeof registrations.get("copy-message")?.handler, "function");
 		{ value: "--with-metadata", label: "--with-metadata" },
 	]);
 	assert.deepEqual(registrations.get("copy-user")?.getArgumentCompletions?.("latest"), null);
-}
+});
 
 const mixedBranch = {
 	sessionManager: {
@@ -181,16 +185,18 @@ const mixedBranch = {
 	},
 };
 
-assert.deepEqual(collectCopyableMessages(mixedBranch), [
-	{ id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "raw user text" },
-	{ id: "a0", role: "assistant", timestamp: "2026-06-07T00:01:00.000Z", text: "raw assistant text" },
-	{ id: "legacy-visible", role: "custom", timestamp: undefined, text: "visible legacy custom message" },
-	{ id: "b0", role: "branchSummary", timestamp: "2026-06-07T00:03:00.000Z", text: "branch summary text" },
-	{ id: "c0", role: "compactionSummary", timestamp: "2026-06-07T00:04:00.000Z", text: "compaction summary text" },
-	{ id: "m0", role: "custom", timestamp: "2026-06-07T00:05:00.000Z", text: "visible custom message text" },
-]);
+test("collects copyable entries from a mixed branch", () => {
+	assert.deepEqual(collectCopyableMessages(mixedBranch), [
+		{ id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "raw user text" },
+		{ id: "a0", role: "assistant", timestamp: "2026-06-07T00:01:00.000Z", text: "raw assistant text" },
+		{ id: "legacy-visible", role: "custom", timestamp: undefined, text: "visible legacy custom message" },
+		{ id: "b0", role: "branchSummary", timestamp: "2026-06-07T00:03:00.000Z", text: "branch summary text" },
+		{ id: "c0", role: "compactionSummary", timestamp: "2026-06-07T00:04:00.000Z", text: "compaction summary text" },
+		{ id: "m0", role: "custom", timestamp: "2026-06-07T00:05:00.000Z", text: "visible custom message text" },
+	]);
+});
 
-{
+test("most recent user message joins adjacent text blocks", () => {
 	const content = [{ type: "text", text: 'print("sa' }, { type: "text", text: 'fe")' }];
 	const branch = {
 		sessionManager: {
@@ -201,9 +207,9 @@ assert.deepEqual(collectCopyableMessages(mixedBranch), [
 		kind: "message",
 		message: { id: "u0", role: "user", timestamp: undefined, text: 'print("safe")' },
 	});
-}
+});
 
-{
+test("pending checkpoints collapse into the final response", () => {
 	const messages = collectCopyableMessages({
 		sessionManager: {
 			getBranch: () => [
@@ -229,9 +235,9 @@ assert.deepEqual(collectCopyableMessages(mixedBranch), [
 		["t0", "tool output"],
 	]);
 	assert.equal(messageByDefaultNumber(messages, 2)?.text, "Final answer");
-}
+});
 
-{
+test("the longest pending checkpoint wins", () => {
 	const messages = collectCopyableMessages({
 		sessionManager: {
 			getBranch: () => [
@@ -257,9 +263,9 @@ assert.deepEqual(collectCopyableMessages(mixedBranch), [
 		},
 	});
 	assert.equal(messageByDefaultNumber(messages, 2)?.text, "FirstSecond");
-}
+});
 
-{
+test("context windows reset response coalescing", () => {
 	const messages = collectCopyableMessages({
 		sessionManager: {
 			getBranch: () => [
@@ -270,47 +276,49 @@ assert.deepEqual(collectCopyableMessages(mixedBranch), [
 		},
 	});
 	assert.deepEqual(messages.map(({ text }) => text), ["Earlier", "Later"]);
-}
-
-assert.deepEqual(getMostRecentUserMessage(mixedBranch), {
-	kind: "message",
-	message: { id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "raw user text" },
 });
 
-assert.deepEqual(
-	getMostRecentUserMessage({
-		sessionManager: {
-			getBranch: () => [
-				{ type: "message", id: "u0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "user", content: "older text" } },
-				{ type: "message", id: "u1", timestamp: "2026-06-07T00:01:00.000Z", message: { role: "user", content: "   " } },
-			],
-		},
-	}),
-	{
+test("most recent user message skips blank text and reports why none matched", () => {
+	assert.deepEqual(getMostRecentUserMessage(mixedBranch), {
 		kind: "message",
-		message: { id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "older text" },
-	},
-);
+		message: { id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "raw user text" },
+	});
 
-assert.deepEqual(
-	getMostRecentUserMessage({
-		sessionManager: {
-			getBranch: () => [{ type: "message", id: "u0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "user", content: "   " } }],
+	assert.deepEqual(
+		getMostRecentUserMessage({
+			sessionManager: {
+				getBranch: () => [
+					{ type: "message", id: "u0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "user", content: "older text" } },
+					{ type: "message", id: "u1", timestamp: "2026-06-07T00:01:00.000Z", message: { role: "user", content: "   " } },
+				],
+			},
+		}),
+		{
+			kind: "message",
+			message: { id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "older text" },
 		},
-	}),
-	{ kind: "no-text" },
-);
+	);
 
-assert.deepEqual(
-	getMostRecentUserMessage({
-		sessionManager: {
-			getBranch: () => [{ type: "message", id: "a0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "assistant", content: "reply" } }],
-		},
-	}),
-	{ kind: "no-user-message" },
-);
+	assert.deepEqual(
+		getMostRecentUserMessage({
+			sessionManager: {
+				getBranch: () => [{ type: "message", id: "u0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "user", content: "   " } }],
+			},
+		}),
+		{ kind: "no-text" },
+	);
 
-{
+	assert.deepEqual(
+		getMostRecentUserMessage({
+			sessionManager: {
+				getBranch: () => [{ type: "message", id: "a0", timestamp: "2026-06-07T00:00:00.000Z", message: { role: "assistant", content: "reply" } }],
+			},
+		}),
+		{ kind: "no-user-message" },
+	);
+});
+
+test("latest default message skips hidden tool messages", () => {
 	const messages = [
 		copyableMessage("a0", "assistant", "raw assistant message", 0),
 		copyableMessage("t0", "toolResult", "raw newest tool message", 1),
@@ -318,9 +326,9 @@ assert.deepEqual(
 	assert.equal(latestDefaultMessage(messages)?.text, "raw assistant message");
 	assert.equal(latestDefaultMessage([copyableMessage("t0", "toolResult", "only tool message", 0)])?.text, "only tool message");
 	assert.equal(latestDefaultMessage([copyableMessage("c0", "custom", "custom message", 0)])?.text, "custom message");
-}
+});
 
-{
+test("numbered selection uses default-visible order", () => {
 	const messages = [
 		copyableMessage("u0", "user", "first user", 0),
 		copyableMessage("t0", "toolResult", "hidden tool", 1),
@@ -332,9 +340,9 @@ assert.deepEqual(
 	assert.equal(messageByDefaultNumber(messages, 2)?.id, "a0");
 	assert.equal(messageByDefaultNumber(messages, 3)?.id, "c0");
 	assert.equal(messageByDefaultNumber(messages, 4), undefined);
-}
+});
 
-{
+test("filteredMessages applies visibility and search", () => {
 	const messages = [
 		copyableMessage("u0", "user", "alpha user text", 0),
 		copyableMessage("a0", "assistant", "beta assistant text", 1),
@@ -362,9 +370,9 @@ assert.deepEqual(
 		),
 		["u0"],
 	);
-}
+});
 
-{
+test("picker filters, search, metadata, and peek", () => {
 	const messages = [
 		copyableMessage("u0", "user", "alpha user text", 0),
 		copyableMessage("a0", "assistant", "beta assistant text", 1),
@@ -400,9 +408,9 @@ assert.deepEqual(
 	assert.equal(state.peek, true);
 	assert.ok(state.render(60, plainTheme).some((line) => line.includes("Peek metadata assistant message")));
 	assert.equal(state.handleInput("\r"), "copy");
-}
+});
 
-{
+test("custom message filter", () => {
 	const state = new CopyMessagePickerState([
 		copyableMessage("u0", "user", "user text", 0),
 		copyableMessage("c0", "custom", "custom text", 1),
@@ -424,9 +432,9 @@ assert.deepEqual(
 	const narrowState = new CopyMessagePickerState([copyableMessage("c0", "custom", "custom", 0)]);
 	press(narrowState, "abcdefghij");
 	assert.match(narrowState.render(80, plainTheme).join("\n"), /search “abcdefghij”/);
-}
+});
 
-{
+test("help hints fit the width", () => {
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
 	const hints60 = state.render(60, plainTheme).at(-2) ?? "";
 	const hints80 = state.render(80, plainTheme).at(-2) ?? "";
@@ -452,9 +460,9 @@ assert.deepEqual(
 
 	assert.match(fullscreenHints, /Ctrl\+Home\/Ctrl\+End jump/);
 	assert.doesNotMatch(fullscreenHints, /(?:^| · )Home\/End jump/);
-}
+});
 
-{
+test("configured selection bindings take precedence", () => {
 	const state = new CopyMessagePickerState([
 		copyableMessage("u0", "user", "first", 0),
 		copyableMessage("a0", "assistant", "second", 1),
@@ -509,9 +517,9 @@ assert.deepEqual(
 	assert.doesNotMatch(hints60, /type search|Ctrl\+U filters/);
 	assert.match(hints80, /type search/);
 	assert.doesNotMatch(hints80, /Home\/End jump|Ctrl\+U filters/);
-}
+});
 
-{
+test("configured cancel wins over Kitty Alt shortcuts", () => {
 	const state = new CopyMessagePickerState([copyableMessage("c0", "custom", "custom", 0)]);
 	const keybindings = new KeybindingsManager(TUI_KEYBINDINGS, { "tui.select.cancel": ["alt+c", "alt+m"] });
 	const kittyAltC = "\x1b[99;3u";
@@ -526,9 +534,9 @@ assert.deepEqual(
 	} finally {
 		setKittyProtocolActive(false);
 	}
-}
+});
 
-{
+test("Tab peek yields to a selection binding", () => {
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
 	const keybindings = {
 		matches: (data: string, id: string) => data === "\t" && id === "tui.select.pageUp",
@@ -539,9 +547,9 @@ assert.deepEqual(
 	assert.doesNotMatch(hints, /Tab peek/);
 	assert.equal(state.handleInput("\t", keybindings), "render");
 	assert.equal(state.peek, false);
-}
+});
 
-{
+test("configured page bindings", () => {
 	const messages = Array.from({ length: 12 }, (_, index) => copyableMessage(`a${index}`, "assistant", `message ${index}`, index));
 	const state = new CopyMessagePickerState(messages);
 	const pageBindings = {
@@ -554,9 +562,9 @@ assert.deepEqual(
 	assert.equal(state.selectedMessage()?.id, "a3");
 	assert.equal(state.handleInput("N", pageBindings), "render");
 	assert.equal(state.selectedMessage()?.id, "a11");
-}
+});
 
-{
+test("shortest configured key hint", () => {
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
 	const keys = {
 		"tui.select.up": ["up", "ctrl+p", "alt+k"],
@@ -579,9 +587,9 @@ assert.deepEqual(
 		assert.match(hints, /enter copy/);
 		assert.match(hints, /escape cancel/);
 	}
-}
+});
 
-{
+test("long key hints stay within width", () => {
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
 	const keys = {
 		"tui.select.up": ["ctrl+shift+alt+super+backspace"],
@@ -605,9 +613,9 @@ assert.deepEqual(
 		assert.match(rendered, /alt\+super\+shift\+ctrl\+backspace copy/);
 		assert.match(rendered, /super\+alt\+shift\+ctrl\+backspace cancel/);
 	}
-}
+});
 
-{
+test("Home and End jumps", () => {
 	const messages = Array.from({ length: 5 }, (_, index) => copyableMessage(`a${index}`, "assistant", `raw assistant message ${index}`, index));
 	const state = new CopyMessagePickerState(messages);
 
@@ -616,9 +624,9 @@ assert.deepEqual(
 	assert.equal(state.selectedMessage()?.text, "raw assistant message 0");
 	assert.equal(state.handleInput("\x1b[F"), "render");
 	assert.equal(state.selectedMessage()?.text, "raw assistant message 4");
-}
+});
 
-{
+test("page and Ctrl jumps restore selection after search", () => {
 	const messages = Array.from({ length: 12 }, (_, index) => copyableMessage(`a${index}`, "assistant", `raw assistant message ${index}`, index));
 	const state = new CopyMessagePickerState(messages);
 
@@ -644,10 +652,15 @@ assert.deepEqual(
 	press(state, "\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f");
 	assert.equal(state.search, "");
 	assert.equal(state.selectedMessage()?.text, "raw assistant message 9");
-}
+});
 
-{
+test("formatMessageForCopy", () => {
 	const message = copyableMessage("u0", "user", "raw user text", 0);
 	assert.equal(formatMessageForCopy(message, "raw"), "raw user text");
 	assert.match(formatMessageForCopy(message, "metadata"), /^user at .*: raw user text$/);
-}
+});
+
+test("package lock excludes WorkOS URLs", () => {
+	const lock = readFileSync(new URL("../package-lock.json", import.meta.url), "utf8");
+	assert.doesNotMatch(lock, /(?:[a-z][a-z0-9+.-]*:)?\/\/[^\s"]*(?:workos|socket-firewall)/i);
+});

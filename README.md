@@ -123,22 +123,29 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Declared Pi floor: 0.84.0. Current development qualification baseline: official 0.86.1 (not a claim that every later release has been tested).
+- Declared Pi floor: 0.84.0. Qualified on official Pi 0.87.1 and the maintained fork's `main` (not a claim that every later release has been tested).
+- The maintained fork persists in-progress assistant snapshots and context-window boundaries; the picker coalesces those so each response appears once. Official Pi writes neither, and the same code handles both.
 - Android/Termux clipboard writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable.
 - Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
-- Supported Node.js range for local repo tooling: `>=22.19.0`
-- `.nvmrc` pins Node 22.19.0 for local development
+- Node.js `>=24.15.0`. `.nvmrc` pins Node 24.21.0 for local development.
 
 This package keeps pi core packages as wildcard peers (`*`) per pi package guidance. Pi aliases these imports to its own bundled copies when loading the extension, so the package never bundles or shadows pi core. Local development uses `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` as dev dependencies for typechecking and tests.
 
 ## Development
 
 ```bash
-npm install
-npm run check:compat # existing behavior tests + typecheck + pack dry-run
+npm ci
+npm run check # node --test + tsc --noEmit + pack dry-run
 ```
 
-No production build or `prepare` is required. Qualification uses the selected host installed in this checkout's dependency graph. The tests cover picker behavior and formatting without clipboard writes; native clipboard delivery, including Android/Termux and OSC 52, requires separate platform qualification.
+No production build or `prepare` is required. Tests run TypeScript directly with Node's type stripping, so source must stay erasable (`erasableSyntaxOnly`). Qualification uses the selected host installed in this checkout's dependency graph. The tests cover picker behavior and formatting without clipboard writes; native clipboard delivery, including Android/Termux and OSC 52, requires separate platform qualification.
+
+`package-lock.json` must only reference `registry.npmjs.org`; a test fails on private-registry URLs. Behind a registry proxy that rewrites tarball URLs, refresh the lock from public metadata and install through the proxy:
+
+```bash
+npm install --package-lock-only --ignore-scripts --registry=https://registry.npmjs.org/
+npm ci
+```
 
 Key files:
 

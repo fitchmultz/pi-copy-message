@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.0 - 2026-09-26
+
+- Require Node.js 24.15 or newer for repository tooling; `.nvmrc` pins 24.21.0 and `packageManager` is npm 12.1.0.
+- Run tests with Node's built-in `node --test` and type stripping instead of `tsx`; typecheck with TypeScript 7.0.2 and `erasableSyntaxOnly`.
+- Refresh the development baseline to Pi 0.87.1, qualified against official Pi and the maintained fork.
+- Guard `package-lock.json` against private-registry URLs.
+- First npm release containing the 2.1.1 clipboard change (2.1.1 was tagged but never published to npm).
+
 ## 2.1.1 - 2026-08-25
 
 - Reuse Pi's clipboard implementation instead of maintaining a duplicate command runner, enabling Pi's OSC 52 fallback on Android/Termux.
