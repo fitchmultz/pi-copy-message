@@ -1,12 +1,12 @@
 {
   "name": "pi-copy-message",
-  "version": "2.1.1",
+  "version": "3.0.0",
   "description": "Pi extension with a searchable TUI picker for copying raw session messages",
   "author": "Mitch Fultz (https://github.com/fitchmultz)",
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22.19.0"
+    "node": ">=24.15.0"
   },
   "keywords": [
     "pi-package",
@@ -32,11 +32,11 @@
   },
   "homepage": "https://github.com/fitchmultz/pi-copy-message#readme",
   "scripts": {
-    "test": "tsx tests/copy-message.test.ts",
+    "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "check": "npm test && npm run typecheck",
-    "check:compat": "npm run check && npm pack --dry-run",
-    "prepublishOnly": "npm run check && npm pack --dry-run"
+    "check": "npm test && npm run typecheck && npm pack --dry-run",
+    "check:compat": "npm run check",
+    "prepublishOnly": "npm run check"
   },
   "files": [
     "extensions",
@@ -45,18 +45,17 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "0.86.1",
-    "@earendil-works/pi-tui": "0.86.1",
-    "@types/node": "^25.9.1",
-    "tsx": "^4.22.4",
-    "typescript": "^6.0.3"
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@earendil-works/pi-tui": "0.87.1",
+    "@types/node": "24.19.0",
+    "typescript": "7.0.2"
   },
   "pi": {
     "extensions": [
       "./extensions"
     ]
   },
-  "packageManager": "npm@11.16.0",
+  "packageManager": "npm@12.1.0",
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*"
