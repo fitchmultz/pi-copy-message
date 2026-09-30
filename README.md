@@ -35,7 +35,7 @@ Or install it directly from GitHub with pi:
 pi install https://github.com/fitchmultz/pi-copy-message
 ```
 
-Restart Pi after installing or updating extension code or dependencies. The maintained fork's `/reload` refreshes resources and reinitializes cached code; it does not apply code updates.
+Use `/reload` after updating extension code on current official Pi and the maintained fork. Restart Pi after changing dependencies or the host runtime.
 
 If you prefer to load it directly from a local checkout during development:
 
@@ -123,8 +123,8 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Declared Pi floor: 0.84.0. Qualified on official Pi 0.87.1 and the maintained fork's `main` (not a claim that every later release has been tested).
-- The maintained fork persists in-progress assistant snapshots and context-window boundaries; the picker coalesces those so each response appears once. Official Pi writes neither, and the same code handles both.
+- Declared Pi floor: 0.84.0. The development baseline is official Pi 0.99.1; maintained-fork qualification records the exact checkout commit, not a version-string equivalence.
+- The picker coalesces legacy in-progress assistant snapshots within their context-window boundaries so each response appears once. Current official Pi and the maintained fork no longer write those legacy boundaries.
 - Android/Termux clipboard writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable.
 - Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
 - Node.js `>=24.15.0`. `.nvmrc` pins Node 24.21.0 for local development.
