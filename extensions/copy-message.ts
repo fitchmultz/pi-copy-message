@@ -1,6 +1,8 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { copyToClipboard, type ExtensionAPI, type ExtensionCommandContext, type KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem, TuiMode } from "@earendil-works/pi-tui";
-import { decodeKittyPrintable, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { decodeKittyPrintable, getNativeClipboard, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi, type TuiMouseEvent } from "@earendil-works/pi-tui";
 
 const MAX_VISIBLE_MESSAGES = 8;
 const MAX_PEEK_LINES = 16;
@@ -167,6 +169,17 @@ export function collectCopyableMessages(ctx: { sessionManager: { getBranch(): un
 		const message = entryToCopyableMessage(entry);
 		return message ? [message] : [];
 	});
+}
+
+function collectProjectedMessages(ctx: ExtensionCommandContext): CopyableMessage[] {
+	const entries = ctx.sessionManager.buildSessionProjection().entries.flatMap(({ sourceEntry, messages }): unknown[] => {
+		// Retain saved fork boundaries for legacy response-snapshot coalescing.
+		if ((sourceEntry.type as string) === "context_window") return [sourceEntry];
+		return messages
+			.filter((message) => !(sourceEntry.type === "compaction" && message.role === "system"))
+			.map((message) => ({ ...sourceEntry, type: "message", message }));
+	});
+	return collectCopyableMessages({ sessionManager: { getBranch: () => entries } });
 }
 
 export type MostRecentUserMessageResult =
@@ -414,6 +427,7 @@ export class CopyMessagePickerState {
 	peek = false;
 	private searchAnchorId: string | undefined;
 	private readonly messages: CopyableMessage[];
+	private firstVisibleIndex = 0;
 
 	constructor(messages: CopyableMessage[], initialFormat: CopyFormat = "raw") {
 		this.messages = messages;
@@ -435,6 +449,7 @@ export class CopyMessagePickerState {
 		const maxVisible = Math.min(this.visibleMessages.length, MAX_VISIBLE_MESSAGES);
 		const start = maxVisible === 0 ? 0 : Math.max(0, Math.min(this.selectedIndex - maxVisible + 1, this.visibleMessages.length - maxVisible));
 		const end = Math.min(this.visibleMessages.length, start + maxVisible);
+		this.firstVisibleIndex = start;
 		const hasCustomMessages = this.messages.some((message) => message.role === "custom");
 		const userState = filterLabel(theme, "user", this.visibility.showUser, "warning");
 		const assistantState = filterLabel(theme, "assistant", this.visibility.showAssistant, "accent");
@@ -584,6 +599,20 @@ export class CopyMessagePickerState {
 		return "none";
 	}
 
+	handleMouse(event: TuiMouseEvent): PickerInputResult {
+		if (event.type === "wheel" && event.wheelDelta) {
+			this.move(event.wheelDelta < 0 ? -1 : 1);
+			return "render";
+		}
+		if (event.button !== "left" || (event.type !== "press" && event.type !== "click")) return "none";
+		const row = event.y - 2; // The message list follows the title and spacer.
+		if (row < 0 || row >= MAX_VISIBLE_MESSAGES) return "none";
+		const index = this.firstVisibleIndex + row;
+		if (!this.visibleMessages[index]) return "none";
+		this.selectedIndex = index;
+		return event.type === "click" ? "copy" : "render";
+	}
+
 	private refreshMessages(preferredId?: string) {
 		const selectedId = preferredId ?? this.visibleMessages[this.selectedIndex]?.id;
 		this.visibleMessages = filteredMessages(this.messages, this.visibility, this.search);
@@ -660,28 +689,33 @@ export function copyArgumentCompletions(prefix: string, includeSelectors: boolea
 	return items.length > 0 ? items : null;
 }
 
-async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessage[], initialFormat: CopyFormat) {
+async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessage[], initialFormat: CopyFormat, signal: AbortSignal) {
+	if (signal.aborted) return null;
 	return ctx.ui.custom<{ message: CopyableMessage; text: string } | null>((tui, theme, keybindings, done) => {
 		const state = new CopyMessagePickerState(messages, initialFormat);
+		const abort = () => done(null);
+		if (signal.aborted) abort();
+		else signal.addEventListener("abort", abort, { once: true });
+		const act = (result: PickerInputResult) => {
+			if (result === "copy") {
+				const selected = state.selectedMessage();
+				const text = state.selectedCopyText();
+				done(selected && text !== undefined ? { message: selected, text } : null);
+			} else if (result === "cancel") done(null);
+			else if (result === "render") tui.requestRender();
+		};
 		return {
 			render(width: number) {
 				return state.render(width, theme, keybindings, tui.mode);
 			},
 			invalidate() {},
-			handleInput(data: string) {
-				const result = state.handleInput(data, keybindings);
-				if (result === "copy") {
-					const selected = state.selectedMessage();
-					const text = state.selectedCopyText();
-					done(selected && text !== undefined ? { message: selected, text } : null);
-					return;
-				}
-				if (result === "cancel") {
-					done(null);
-					return;
-				}
-				if (result === "render") tui.requestRender();
+			handleInput(data: string) { act(state.handleInput(data, keybindings)); },
+			handleMouse(event) {
+				const result = state.handleMouse(event);
+				act(result);
+				if (result !== "none") return { handled: true, focus: result === "render" };
 			},
+			dispose: () => signal.removeEventListener("abort", abort),
 		};
 	});
 }
@@ -690,74 +724,132 @@ function copyNotificationText(selected: CopyableMessage): string {
 	return `Copied ${roleLabel(selected.role)} message: “${compactPreview(selected.text, 48)}”`;
 }
 
-async function copySelectedMessage(ctx: Pick<ExtensionCommandContext, "ui">, selected: CopyableMessage, text = selected.text) {
+const runClipboardReader = promisify(execFile);
+
+async function readCopiedText(expected: string): Promise<string | null | undefined> {
+	if (process.platform !== "linux") {
+		try {
+			const text = await getNativeClipboard()?.getText();
+			if (text !== undefined) return text;
+		} catch {
+			// The platform command fallback can still work if the native helper fails.
+		}
+	}
+	const commands: [string, string[]][] = [];
+	const windowsRead = ["-NoProfile", "-Command", "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); [Console]::Write((Get-Clipboard -Raw))"];
+	if (process.platform === "darwin") commands.push(["pbpaste", []]);
+	else if (process.platform === "win32") commands.push(["powershell", windowsRead]);
+	else {
+		if (process.env.TERMUX_VERSION) commands.push(["termux-clipboard-get", []]);
+		if (process.env.WAYLAND_DISPLAY) commands.push(["wl-paste", ["--no-newline", "--type", "text"]]);
+		if (process.env.DISPLAY) commands.push(["xclip", ["-selection", "clipboard", "-out"]], ["xsel", ["--clipboard", "--output"]]);
+		if (!commands.length && (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP)) commands.push(["powershell.exe", windowsRead]);
+	}
+	for (const [command, args] of commands) {
+		try {
+			const { stdout } = await runClipboardReader(command, args, {
+				encoding: "utf8", timeout: 3000, maxBuffer: Math.max(1024 * 1024, Buffer.byteLength(expected) + 4096),
+			});
+			return stdout || null;
+		} catch {
+			// Try the next platform reader; never expose clipboard contents on failure.
+		}
+	}
+	return undefined;
+}
+
+type Notify = ExtensionCommandContext["ui"]["notify"];
+
+async function copySelectedMessage(notify: Notify, selected: CopyableMessage, text = selected.text) {
 	try {
 		await copyToClipboard(text);
-		ctx.ui.notify(copyNotificationText(selected), "info");
+		const actual = await readCopiedText(text);
+		const remote = Boolean(process.env.SSH_CONNECTION || process.env.SSH_CLIENT || process.env.MOSH_CONNECTION);
+		if (actual === text && !remote) notify(copyNotificationText(selected), "info");
+		else notify(
+			actual === text ? "Local clipboard verified; remote terminal clipboard delivery is unverified."
+				: "Clipboard command completed, but delivery could not be verified.",
+			"warning",
+		);
 	} catch (error) {
-		ctx.ui.notify(error instanceof Error ? error.message : "Failed to copy to clipboard", "error");
+		notify(error instanceof Error ? error.message : "Failed to copy to clipboard", "error");
 	}
 }
 
-async function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionManager" | "ui">, format: CopyFormat) {
+async function copyMostRecentUserMessage(ctx: Pick<ExtensionCommandContext, "sessionManager">, notify: Notify, format: CopyFormat) {
 	const result = getMostRecentUserMessage(ctx);
 	if (result.kind === "no-user-message") {
-		ctx.ui.notify("No user messages found", "warning");
+		notify("No user messages found", "warning");
 		return;
 	}
 	if (result.kind === "no-text") {
-		ctx.ui.notify("No user message text found", "warning");
+		notify("No user message text found", "warning");
 		return;
 	}
-
-	await copySelectedMessage(ctx, result.message, formatMessageForCopy(result.message, format));
+	await copySelectedMessage(notify, result.message, formatMessageForCopy(result.message, format));
 }
 
-export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCommand">) {
+export default function copyMessageExtension(pi: Pick<ExtensionAPI, "registerCommand" | "on">) {
+	let generation = 0;
+	let pickerAbort: AbortController | undefined;
+	const reset = () => {
+		generation++;
+		pickerAbort?.abort();
+		pickerAbort = undefined;
+	};
+	pi.on("session_start", reset);
+	pi.on("session_shutdown", reset);
+	pi.on("session_tree", reset);
+	const notifications = (ctx: ExtensionCommandContext): Notify => {
+		const current = generation;
+		return (message, type) => { if (current === generation) ctx.ui.notify(message, type); };
+	};
 	pi.registerCommand("copy-message", {
 		description: "Select a session message and copy its text to the clipboard",
 		getArgumentCompletions: (argumentPrefix) => copyArgumentCompletions(argumentPrefix, true),
 		handler: async (args, ctx) => {
+			const notify = notifications(ctx);
 			const parsedArgs = parseCopyArgs(args);
-			const messages = collectCopyableMessages(ctx);
+			const messages = parsedArgs.selector === "latest" ? collectProjectedMessages(ctx) : collectCopyableMessages(ctx);
 			if (messages.length === 0) {
-				ctx.ui.notify("No copyable messages found in the current branch", "error");
+				notify("No copyable messages found in the current branch", "error");
 				return;
 			}
-
 			if (parsedArgs.selector === "latest") {
 				const latestVisible = latestDefaultMessage(messages);
-				if (latestVisible) await copySelectedMessage(ctx, latestVisible, formatMessageForCopy(latestVisible, parsedArgs.format));
+				if (latestVisible) await copySelectedMessage(notify, latestVisible, formatMessageForCopy(latestVisible, parsedArgs.format));
 				return;
 			}
-
 			if (typeof parsedArgs.selector === "object") {
 				const selected = messageByDefaultNumber(messages, parsedArgs.selector.number);
 				if (!selected) {
-					ctx.ui.notify(`No default visible message #${parsedArgs.selector.number} (found ${defaultVisibleMessages(messages).length})`, "warning");
+					notify(`No default visible message #${parsedArgs.selector.number} (found ${defaultVisibleMessages(messages).length})`, "warning");
 					return;
 				}
-				await copySelectedMessage(ctx, selected, formatMessageForCopy(selected, parsedArgs.format));
+				await copySelectedMessage(notify, selected, formatMessageForCopy(selected, parsedArgs.format));
 				return;
 			}
-
 			if (ctx.mode !== "tui") {
-				ctx.ui.notify("/copy-message requires interactive TUI mode unless you pass latest/last/newest or a message number", "error");
+				notify("/copy-message requires interactive TUI mode unless you pass latest/last/newest or a message number", "error");
 				return;
 			}
-
-			const selected = await pickMessage(ctx, messages, parsedArgs.format);
-			if (!selected) return;
-
-			await copySelectedMessage(ctx, selected.message, selected.text);
+			pickerAbort?.abort();
+			const controller = new AbortController();
+			pickerAbort = controller;
+			try {
+				const selected = await pickMessage(ctx, messages, parsedArgs.format, controller.signal);
+				if (!selected || controller.signal.aborted) return;
+				await copySelectedMessage(notify, selected.message, selected.text);
+			} finally {
+				if (pickerAbort === controller) pickerAbort = undefined;
+			}
 		},
 	});
-
 	pi.registerCommand("copy-user", {
 		description: "Copy the most recent user message to the clipboard",
 		getArgumentCompletions: (argumentPrefix) => copyArgumentCompletions(argumentPrefix, false),
 		handler: async (args, ctx) => {
-			await copyMostRecentUserMessage(ctx, parseCopyArgs(args).format);
+			await copyMostRecentUserMessage(ctx, notifications(ctx), parseCopyArgs(args).format);
 		},
 	});
 }
