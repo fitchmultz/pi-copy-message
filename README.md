@@ -123,7 +123,7 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Declared Pi floor: 0.84.0. The development baseline is official Pi 0.99.1; maintained-fork qualification records the exact checkout commit, not a version-string equivalence.
+- Declared Pi floor: 0.84.0. The development baseline is official Pi 0.99.2; maintained-fork qualification records the exact checkout commit, not a version-string equivalence.
 - The picker coalesces legacy in-progress assistant snapshots within their context-window boundaries so each response appears once. Current official Pi and the maintained fork no longer write those legacy boundaries.
 - Android/Termux clipboard writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable.
 - Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
