@@ -22,7 +22,8 @@ type CommandOptions = Parameters<ExtensionAPI["registerCommand"]>[1];
 
 const captureRegisteredCommands = () => {
 	const commands = new Map<string, CommandOptions>();
-	const pi: Pick<ExtensionAPI, "registerCommand"> = {
+	const pi: Pick<ExtensionAPI, "registerCommand" | "on"> = {
+		on: (() => () => {}) as ExtensionAPI["on"],
 		registerCommand: (name, options) => {
 			commands.set(name, options);
 		},

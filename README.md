@@ -16,8 +16,8 @@ A [pi](https://github.com/earendil-works/pi-mono) extension that adds `/copy-mes
 - Supports type-to-filter search across role and message text, with `time:<term>` for timestamp search
 - Supports Home/End jumps for oldest/newest visible messages
 - Uses Pi's configured selection bindings for navigation, copy, and cancel
-- Uses Pi's clipboard implementation, including its OSC 52 terminal fallback
-- Includes fast paths: `/copy-message latest`, `/copy-message last`, and `/copy-message newest`
+- Keeps Pi's platform clipboard writes and OSC 52 fallback, but reports success only after local text readback
+- Includes fast paths: `/copy-message latest`, `/copy-message last`, and `/copy-message newest`, using Pi's canonical active context
 - Supports direct numbered copies like `/copy-message 3`
 - Supports metadata copies with `--with-meta`, `--with-metadata`, or `--with-role`
 
@@ -109,6 +109,8 @@ Copy with role and timestamp metadata instead of raw text only:
 ## Behavior notes
 
 - Entry IDs are hidden from the picker.
+- Mouse wheel navigates; clicking a message copies it and returns keyboard focus to the unchanged draft.
+- Session replacement, tree navigation, shutdown and reload cancel pending pickers without stale-context notifications.
 - The picker caps visible rows and scrolls instead of filling the screen.
 - Search preserves your original selected message and restores it when the search is cleared.
 - General search does not match timestamps; use `time:<term>` when you want to search by displayed time.
@@ -116,14 +118,16 @@ Copy with role and timestamp metadata instead of raw text only:
 - Filter labels honor the active pi theme.
 - Selection key hints show the active Pi bindings. Configured selection actions take precedence if they collide with the picker's filter, preview, or format shortcuts.
 - Only custom messages with `display: true` can appear or be copied from current `custom_message` entries or legacy message-wrapped entries; visible ones can be toggled with `Alt+C`.
-- Copy notifications include the role and a short preview so you can verify what was copied.
+- A verified local copy notification includes the role and a short preview. Unavailable, empty or mismatched readback warns instead of claiming success; rejected writes report an error. Remote terminal delivery via OSC 52 cannot be verified, even when the remote machine's local clipboard matches.
+- Native clipboard reads are preferred where available. Bounded platform readers preserve exact text, including newlines; the extension never replaces Pi's working write fallback chain.
+- `latest` uses Pi's canonical session projection, honoring context edits, omissions and compaction. Numbered selectors, the picker and `/copy-user` retain raw active-branch history, including older pre-compaction messages.
 - `/copy-message latest` and numbered selectors include user, assistant, and visible custom messages by default while hiding tool/bash messages. `Alt+C` only affects the picker. If only hidden messages exist, `latest` falls back to the newest message so the command still does something useful.
 - `/copy-message` with no direct selector requires interactive TUI mode because the picker is a custom TUI component.
 - Direct commands such as `/copy-user`, `/copy-message latest`, and `/copy-message 3` do not require TUI mode, though non-UI modes may not display notifications.
 
 ## Compatibility
 
-- Declared Pi floor: 0.84.0. The development baseline is official Pi 0.99.2; maintained-fork qualification records the exact checkout commit, not a version-string equivalence.
+- Requires Pi 1.0.0 or later. Development and standalone/packed qualification use the official 1.0.0 cohort; a maintained fork must be qualified at its actual supported revision, not by version-string equivalence.
 - The picker coalesces legacy in-progress assistant snapshots within their context-window boundaries so each response appears once. Current official Pi and the maintained fork no longer write those legacy boundaries.
 - Android/Termux clipboard writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable.
 - Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
@@ -138,7 +142,7 @@ npm ci
 npm run check # node --test + tsc --noEmit + pack dry-run
 ```
 
-No production build or `prepare` is required. Tests run TypeScript directly with Node's type stripping, so source must stay erasable (`erasableSyntaxOnly`). Qualification uses the selected host installed in this checkout's dependency graph. The tests cover picker behavior and formatting without clipboard writes; native clipboard delivery, including Android/Termux and OSC 52, requires separate platform qualification.
+No production build or `prepare` is required. Tests run TypeScript directly with Node's type stripping, so source must stay erasable (`erasableSyntaxOnly`). Qualification uses the selected host installed in this checkout's dependency graph. The tests cover formatting, native command execution, canonical context and branch selection, both TUI modes, pointer focus and pending-picker disposal. Native addon interception and an isolated command PATH keep test clipboard writes in temporary fixture files, never the operator clipboard. Actual Android/Termux, Windows/WSL and remote terminal delivery still require platform qualification.
 
 `package-lock.json` must only reference `registry.npmjs.org`; a test fails on private-registry URLs. Behind a registry proxy that rewrites tarball URLs, refresh the lock from public metadata and install through the proxy:
 

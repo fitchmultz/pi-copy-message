@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.0.0 - 2026-10-01
+
+- Require Pi 1.0.0 and pin the official 1.0.0 development cohort.
+- Use the native canonical projection for latest-message copies, honoring context edits and compaction while retaining raw historical numbered/picker/user copies and legacy response snapshots.
+- Verify clipboard text before reporting success; keep Pi's complete native/platform/OSC 52 write fallback chain and warn when delivery is unverified, empty, mismatched or remote.
+- Cancel pending pickers on session/tree/shutdown lifecycle changes; suppress stale completion notifications.
+- Add native mouse navigation/copy with restored editor focus and safe isolated clipboard/SDK lifecycle regression coverage.
+
 ## 3.0.0 - 2026-09-26
 
 - Require Node.js 24.15 or newer for repository tooling; `.nvmrc` pins 24.21.0 and `packageManager` is npm 12.1.0.
