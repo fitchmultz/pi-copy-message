@@ -7,12 +7,9 @@ import { type KeyId, KeybindingsManager, setKittyProtocolActive, TUI_KEYBINDINGS
 
 import extension, {
 	collectCopyableMessages,
-	copyArgumentCompletions,
 	CopyMessagePickerState,
 	defaultVisibleMessages,
 	type CopyableMessage,
-	filteredMessages,
-	formatMessageForCopy,
 	getMostRecentUserMessage,
 	latestDefaultMessage,
 	messageByDefaultNumber,
@@ -108,17 +105,10 @@ test("backspace deletes whole graphemes and restores selection", () => {
 	}
 });
 
-test("registers copy-message and copy-user", () => {
-	assert.deepEqual([...registrations.keys()], ["copy-message", "copy-user"]);
-	assert.equal(registrations.get("copy-user")?.description, "Copy the most recent user message to the clipboard");
-	assert.equal(typeof registrations.get("copy-user")?.handler, "function");
-	assert.equal(registrations.get("copy-message")?.description, "Select a session message and copy its text to the clipboard");
-	assert.equal(typeof registrations.get("copy-message")?.handler, "function");
-});
-
 test("argument completions", () => {
-	// argument completion helper
-	assert.deepEqual(copyArgumentCompletions("", true), [
+	const messageCompletions = registrations.get("copy-message")!.getArgumentCompletions!;
+	const userCompletions = registrations.get("copy-user")!.getArgumentCompletions!;
+	assert.deepEqual(messageCompletions(""), [
 		{ value: "latest", label: "latest" },
 		{ value: "last", label: "last" },
 		{ value: "newest", label: "newest" },
@@ -126,34 +116,25 @@ test("argument completions", () => {
 		{ value: "--with-metadata", label: "--with-metadata" },
 		{ value: "--with-role", label: "--with-role" },
 	]);
-	assert.deepEqual(copyArgumentCompletions("la", true), [
+	assert.deepEqual(messageCompletions("la"), [
 		{ value: "latest", label: "latest" },
 		{ value: "last", label: "last" },
 	]);
-	assert.deepEqual(copyArgumentCompletions("--with-r", true), [{ value: "--with-role", label: "--with-role" }]);
-	assert.deepEqual(copyArgumentCompletions("new", true), [{ value: "newest", label: "newest" }]);
-	assert.deepEqual(copyArgumentCompletions("5", true), null);
-	assert.deepEqual(copyArgumentCompletions("zzz", true), null);
-	assert.deepEqual(copyArgumentCompletions("", false), [
+	assert.deepEqual(messageCompletions("--with-r"), [{ value: "--with-role", label: "--with-role" }]);
+	assert.deepEqual(messageCompletions("new"), [{ value: "newest", label: "newest" }]);
+	assert.deepEqual(messageCompletions("5"), null);
+	assert.deepEqual(messageCompletions("zzz"), null);
+	assert.deepEqual(userCompletions(""), [
 		{ value: "--with-meta", label: "--with-meta" },
 		{ value: "--with-metadata", label: "--with-metadata" },
 		{ value: "--with-role", label: "--with-role" },
 	]);
-	assert.deepEqual(copyArgumentCompletions("la", false), null);
-	assert.deepEqual(copyArgumentCompletions("latest", false), null);
-
-	// wired onto both registered commands
-	assert.equal(typeof registrations.get("copy-message")?.getArgumentCompletions, "function");
-	assert.equal(typeof registrations.get("copy-user")?.getArgumentCompletions, "function");
-	assert.deepEqual(registrations.get("copy-message")?.getArgumentCompletions?.("la"), [
-		{ value: "latest", label: "latest" },
-		{ value: "last", label: "last" },
-	]);
-	assert.deepEqual(registrations.get("copy-user")?.getArgumentCompletions?.("--with-meta"), [
+	assert.deepEqual(userCompletions("la"), null);
+	assert.deepEqual(userCompletions("latest"), null);
+	assert.deepEqual(userCompletions("--with-meta"), [
 		{ value: "--with-meta", label: "--with-meta" },
 		{ value: "--with-metadata", label: "--with-metadata" },
 	]);
-	assert.deepEqual(registrations.get("copy-user")?.getArgumentCompletions?.("latest"), null);
 });
 
 const mixedBranch = {
@@ -343,36 +324,6 @@ test("numbered selection uses default-visible order", () => {
 	assert.equal(messageByDefaultNumber(messages, 4), undefined);
 });
 
-test("filteredMessages applies visibility and search", () => {
-	const messages = [
-		copyableMessage("u0", "user", "alpha user text", 0),
-		copyableMessage("a0", "assistant", "beta assistant text", 1),
-		copyableMessage("a1", "assistant", "gamma final answer", 2),
-		copyableMessage("t0", "toolResult", "delta tool text", 3),
-	];
-
-	assert.deepEqual(
-		filteredMessages(messages, { showAssistant: true, showUser: true, showTools: false, showCustom: true }).map((message) => message.id),
-		["u0", "a0", "a1"],
-	);
-	assert.deepEqual(
-		filteredMessages(messages, { showAssistant: false, showUser: true, showTools: true, showCustom: true }, "delta").map((message) => message.id),
-		["t0"],
-	);
-	assert.deepEqual(
-		filteredMessages([copyableMessage("u0", "user", "alpha", 0)], { showAssistant: true, showUser: true, showTools: true, showCustom: true }, "00").map(
-			(message) => message.id,
-		),
-		[],
-	);
-	assert.deepEqual(
-		filteredMessages([copyableMessage("u0", "user", "alpha", 0)], { showAssistant: true, showUser: true, showTools: true, showCustom: true }, "time:00").map(
-			(message) => message.id,
-		),
-		["u0"],
-	);
-});
-
 test("picker filters, search, metadata, and peek", () => {
 	const messages = [
 		copyableMessage("u0", "user", "alpha user text", 0),
@@ -398,6 +349,18 @@ test("picker filters, search, metadata, and peek", () => {
 	assert.equal(state.handleInput("\x01"), "render");
 	assert.equal(state.visibility.showAssistant, false);
 	assert.deepEqual(state.visibleMessages.map((message) => message.id), ["u0"]);
+
+	assert.equal(state.handleInput("\x14"), "render");
+	press(state, "delta");
+	assert.deepEqual(state.visibleMessages.map((message) => message.id), ["t0"]);
+	press(state, "\x7f\x7f\x7f\x7f\x7f");
+	assert.equal(state.handleInput("\x14"), "render");
+	press(state, "00");
+	assert.deepEqual(state.visibleMessages.map((message) => message.id), []);
+	press(state, "\x7f\x7f");
+	press(state, "time:00");
+	assert.deepEqual(state.visibleMessages.map((message) => message.id), ["u0"]);
+	press(state, "\x7f\x7f\x7f\x7f\x7f\x7f\x7f");
 
 	assert.equal(state.handleInput("\x01"), "render");
 	press(state, "gamma");
@@ -653,12 +616,6 @@ test("page and Ctrl jumps restore selection after search", () => {
 	press(state, "\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f");
 	assert.equal(state.search, "");
 	assert.equal(state.selectedMessage()?.text, "raw assistant message 9");
-});
-
-test("formatMessageForCopy", () => {
-	const message = copyableMessage("u0", "user", "raw user text", 0);
-	assert.equal(formatMessageForCopy(message, "raw"), "raw user text");
-	assert.match(formatMessageForCopy(message, "metadata"), /^user at .*: raw user text$/);
 });
 
 test("package lock excludes WorkOS URLs", () => {

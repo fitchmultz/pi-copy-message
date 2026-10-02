@@ -257,7 +257,7 @@ function messageMatchesSearch(message: CopyableMessage, search: string): boolean
 	});
 }
 
-export function filteredMessages(messages: CopyableMessage[], visibility: MessageVisibility, search = ""): CopyableMessage[] {
+function filteredMessages(messages: CopyableMessage[], visibility: MessageVisibility, search = ""): CopyableMessage[] {
 	return messages.filter((message) => isVisibleMessage(message, visibility) && messageMatchesSearch(message, search));
 }
 
@@ -274,7 +274,7 @@ export function messageByDefaultNumber(messages: CopyableMessage[], number: numb
 	return defaultVisibleMessages(messages)[number - 1];
 }
 
-export function formatMessageForCopy(message: CopyableMessage, format: CopyFormat): string {
+function formatMessageForCopy(message: CopyableMessage, format: CopyFormat): string {
 	if (format === "raw") return message.text;
 	const time = formatTime(message.timestamp);
 	const label = roleLabel(message.role);
@@ -679,7 +679,7 @@ function parseCopyArgs(args: string | undefined): ParsedCopyMessageArgs {
 	return result;
 }
 
-export function copyArgumentCompletions(prefix: string, includeSelectors: boolean): AutocompleteItem[] | null {
+function copyArgumentCompletions(prefix: string, includeSelectors: boolean): AutocompleteItem[] | null {
 	if (/^\d+$/.test(prefix)) return null;
 	const candidates = includeSelectors ? [...COPY_LATEST_SELECTORS, ...COPY_METADATA_FLAGS] : COPY_METADATA_FLAGS;
 	const normalized = prefix.toLowerCase();
