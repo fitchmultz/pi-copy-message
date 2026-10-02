@@ -82,8 +82,10 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
     const screen = () => (renderer().mode === "fullscreen" ? renderer().previousScreen : renderer().previousLines) ?? [];
     assert.equal(renderer().mode, "fullscreen");
     const notes: Array<{ text: string; type?: string }> = [];
-    const observe = () => t.mock.method(context!.ui, "notify", (text: string, type?: "info" | "warning" | "error") => { notes.push({ text, type }); });
-    observe();
+    // ponytail: no public notification observer exists; observe the native sink until the SDK exposes one.
+    const notifications = mode as unknown as { showExtensionNotify(text: string, type?: "info" | "warning" | "error"): void };
+    const notify = notifications.showExtensionNotify.bind(mode);
+    t.mock.method(notifications, "showExtensionNotify", (text, type) => { notes.push({ text, type }); notify(text, type); });
     const manager = runtime.session.sessionManager;
     manager.appendMessage({ role: "user", content: "Stored user 界🙂\nsecond line\n", timestamp: Date.now() });
     const answer = manager.appendMessage({ role: "assistant", content: [{ type: "text", text: "Stored answer" }], api: "openai-responses", provider: "fixture", model: "fixture", usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }, stopReason: "stop", timestamp: Date.now() });
@@ -157,12 +159,12 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
       const outgoing = context!; assert.equal((await outgoing.newSession()).cancelled, false); await picker;
       assert.equal(writes().length, before + 1);
       assert.throws(() => outgoing.ui.getEditorText(), /stale|invalid|disposed|active/i);
-      await runtime.session.prompt("/qa-context"); observe();
+      await runtime.session.prompt("/qa-context");
       const marker = runtime.session.sessionManager.appendMessage({ role: "user", content: "New branch marker", timestamp: Date.now() });
       picker = runtime.session.prompt("/copy-message"); await rendered();
       assert.equal((await context!.fork(marker, { position: "at" })).cancelled, false);
       await picker;
-      await runtime.session.prompt("/qa-context"); observe();
+      await runtime.session.prompt("/qa-context");
       const m = runtime.session.sessionManager; const journal = join(home, "resume.jsonl");
       writeFileSync(journal, [m.getHeader(), ...m.getBranch()].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
       picker = runtime.session.prompt("/copy-message"); await rendered();
@@ -171,7 +173,7 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
       await runtime.session.prompt("/qa-context");
       picker = runtime.session.prompt("/copy-message"); await rendered();
       await context!.reload(); await picker;
-      await runtime.session.prompt("/qa-context"); observe();
+      await runtime.session.prompt("/qa-context");
       await runtime.session.prompt("/copy-message latest"); assert.equal(clipboard().text, "New branch marker");
       assert.equal(writes().length, before + 2);
     });
