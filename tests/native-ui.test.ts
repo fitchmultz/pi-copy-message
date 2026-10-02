@@ -85,7 +85,7 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
     // ponytail: no public notification observer exists; observe the native sink until the SDK exposes one.
     const notifications = mode as unknown as { showExtensionNotify(text: string, type?: "info" | "warning" | "error"): void };
     const notify = notifications.showExtensionNotify.bind(mode);
-    t.mock.method(notifications, "showExtensionNotify", (text, type) => { notes.push({ text, type }); notify(text, type); });
+    t.mock.method(notifications, "showExtensionNotify", (text: string, type?: "info" | "warning" | "error") => { notes.push({ text, type }); notify(text, type); });
     const manager = runtime.session.sessionManager;
     manager.appendMessage({ role: "user", content: "Stored user 界🙂\nsecond line\n", timestamp: Date.now() });
     const answer = manager.appendMessage({ role: "assistant", content: [{ type: "text", text: "Stored answer" }], api: "openai-responses", provider: "fixture", model: "fixture", usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }, stopReason: "stop", timestamp: Date.now() });
