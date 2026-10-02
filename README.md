@@ -144,6 +144,8 @@ npm run check # node --test + tsc --noEmit + pack dry-run
 
 No production build or `prepare` is required. Tests run TypeScript directly with Node's type stripping, so source must stay erasable (`erasableSyntaxOnly`). Qualification uses the selected host installed in this checkout's dependency graph. The tests cover formatting, native command execution, canonical context and branch selection, both TUI modes, pointer focus and pending-picker disposal. Native addon interception and an isolated command PATH keep test clipboard writes in temporary fixture files, never the operator clipboard. Actual Android/Termux, Windows/WSL and remote terminal delivery still require platform qualification.
 
+Completion cases belong to registered command hooks; filter/search and copy-format cases belong to the picker and native delivery, not duplicate private-helper tests.
+
 `package-lock.json` must only reference `registry.npmjs.org`; a test fails on private-registry URLs. Behind a registry proxy that rewrites tarball URLs, refresh the lock from public metadata and install through the proxy:
 
 ```bash
