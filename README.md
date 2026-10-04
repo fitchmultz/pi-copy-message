@@ -127,13 +127,21 @@ Copy with role and timestamp metadata instead of raw text only:
 
 ## Compatibility
 
-- Requires Pi 1.0.0 or later. Development and standalone/packed qualification use the official 1.0.0 cohort; a maintained fork must be qualified at its actual supported revision, not by version-string equivalence.
+- Requires Pi 1.0.0 or later. CI and standalone/packed qualification use the latest stable official Pi and latest maintained fork `main`, resolving the version/commit once per workflow run and retaining exact SDK/CLI evidence. Locked development dependencies are reproducible snapshots, not qualification targets; the support floor does not make fork qualification optional.
 - The picker coalesces legacy in-progress assistant snapshots within their context-window boundaries so each response appears once. Current official Pi and the maintained fork no longer write those legacy boundaries.
 - Android/Termux clipboard writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable.
 - Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
 - Node.js `>=24.15.0`. `.nvmrc` pins Node 24.21.0 for local development.
 
 This package keeps pi core packages as wildcard peers (`*`) per pi package guidance. Pi aliases these imports to its own bundled copies when loading the extension, so the package never bundles or shadows pi core. Local development uses `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` as dev dependencies for typechecking and tests.
+
+For latest-host qualification, run `node /path/to/automation/scripts/qualify.mjs --repo pi-copy-message --source "$PWD" --host official --target latest --output /tmp/pi-copy-message-official`, then qualify the packed latest maintained fork with `--host fork --target /path/to/fork-package`. Plain `npm ci` checks only the locked development snapshot, not latest qualification.
+
+## Automatic npm releases (maintainers)
+
+Follow the [shared release procedure](https://github.com/fitchmultz/.github#automatic-npm-releases): merge a reviewed PR into `main` with an intentional `package.json` version bump and a matching versioned `CHANGELOG.md` section. Once configured and enabled, publication is unattended after the existing compatibility checks and candidate-tarball qualification pass. Complete any applicable package-specific release evidence before merging the bump. Automation never bumps versions, overwrites releases, or republishes an existing version; existing manual publisher instructions remain valid.
+
+Failed/unpublished candidates can retry daily at 12:17 UTC or via manual dispatch of `npm release` on `main`, without another bump. Set repository variable `NPM_RELEASE_ENABLED` to anything other than `true` to stop new release plans; cancel pending runs separately when needed. Workflow validation is not evidence of a completed real OIDC publication.
 
 ## Development
 
