@@ -4,8 +4,6 @@ Copy message text from a [Pi](https://github.com/earendil-works/pi-mono) session
 
 ![Flow from the /copy-message command through message search and selection to the clipboard.](.github/readme/copy-flow.png)
 
-*The picker sends the selected message text to Pi's clipboard support.*
-
 ## Install and start
 
 This extension requires Pi 1.0.0 or later and Node.js 24.15.0 or later.
