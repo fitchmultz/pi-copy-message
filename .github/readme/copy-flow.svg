@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
+  <title id="title">Copy a message from Pi</title>
+  <desc id="desc">Open the copy-message picker, search session history, press Enter or click to copy raw text, and let Pi write to the clipboard. Local readback checks delivery; unavailable or remote delivery produces a warning.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#060A12"/><stop offset="0.52" stop-color="#0B1120"/><stop offset="1" stop-color="#080C16"/>
+    </linearGradient>
+    <radialGradient id="blueBloom" cx="0.18" cy="0.18" r="0.8">
+      <stop stop-color="#2563EB" stop-opacity="0.22"/><stop offset="1" stop-color="#2563EB" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="violetBloom" cx="0.70" cy="0.36" r="0.7">
+      <stop stop-color="#8B5CF6" stop-opacity="0.16"/><stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#172238" stop-opacity="0.96"/><stop offset="1" stop-color="#0E1525" stop-opacity="0.98"/>
+    </linearGradient>
+    <linearGradient id="focus" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#172554" stop-opacity="0.82"/><stop offset="1" stop-color="#312E81" stop-opacity="0.58"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#02040A" flood-opacity="0.54"/>
+    </filter>
+    <marker id="arrowBlue" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M1 1 11 6 1 11Z" fill="#60A5FA"/>
+    </marker>
+    <marker id="arrowViolet" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M1 1 11 6 1 11Z" fill="#A78BFA"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M1 1 11 6 1 11Z" fill="#34D399"/>
+    </marker>
+    <style>
+      .sans { font-family: Inter, ui-sans-serif, Arial, sans-serif; }
+      .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+      .step { font: 700 22px "JetBrains Mono", ui-monospace, monospace; letter-spacing: 1px; }
+      .heading { font: 650 32px Inter, ui-sans-serif, Arial, sans-serif; fill: #F8FAFC; }
+      .body { font: 450 26px Inter, ui-sans-serif, Arial, sans-serif; fill: #B0BDD2; }
+      .connector { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <!-- Solid canvas and restrained starter-token blooms. -->
+  <rect width="1600" height="520" fill="url(#canvas)"/>
+  <rect width="1600" height="520" fill="url(#blueBloom)"/>
+  <rect width="1600" height="520" fill="url(#violetBloom)"/>
+  <g class="sans">
+    <text x="64" y="82" font-size="48" font-weight="700" letter-spacing="-1" fill="#F8FAFC">Your session. The original text.</text>
+    <text x="64" y="126" class="body">Find a prompt, answer, or tool output worth keeping.</text>
+  </g>
+
+  <!-- Dedicated connector lanes: open → find → copy → clipboard. -->
+  <path d="M444 298H500" class="connector" stroke="#60A5FA" marker-end="url(#arrowBlue)"/>
+  <path d="M1024 238H1090" class="connector" stroke="#A78BFA" marker-end="url(#arrowViolet)"/>
+  <path d="M1313 300V330" class="connector" stroke="#34D399" marker-end="url(#arrowGreen)"/>
+
+  <g class="sans" filter="url(#shadow)">
+    <g transform="translate(64 192)">
+      <rect width="380" height="226" rx="24" fill="url(#glass)" stroke="#2A3851"/>
+      <text x="28" y="48" class="step" fill="#60A5FA">01 / OPEN</text>
+      <text x="28" y="96" class="heading">Session history</text>
+      <rect x="28" y="121" width="324" height="54" rx="12" fill="#0C1425" stroke="#38517A"/>
+      <text x="48" y="156" class="mono" font-size="28" fill="#BFDBFE">/copy-message</text>
+      <text x="28" y="204" class="body">Newest selected first</text>
+    </g>
+    <g transform="translate(500 168)">
+      <rect width="524" height="274" rx="28" fill="url(#focus)" stroke="#6D7DFF" stroke-opacity="0.62"/>
+      <text x="32" y="48" class="step" fill="#A78BFA">02 / FIND</text>
+      <text x="32" y="96" class="heading" font-size="36">Pick the right message</text>
+      <text x="32" y="140" class="body">Type to search · Tab to preview</text>
+      <g transform="translate(32 164)">
+        <rect width="120" height="38" rx="19" fill="#0C1425" stroke="#38517A"/>
+        <text x="60" y="26" font-size="23" fill="#BFDBFE" text-anchor="middle">User</text>
+        <rect x="134" width="158" height="38" rx="19" fill="#0C1425" stroke="#51426F"/>
+        <text x="213" y="26" font-size="23" fill="#DDD6FE" text-anchor="middle">Assistant</text>
+        <rect x="306" width="150" height="38" rx="19" fill="#0C1425" stroke="#38517A"/>
+        <text x="381" y="26" font-size="23" fill="#B0BDD2" text-anchor="middle">Custom</text>
+      </g>
+      <text x="32" y="246" class="body">Ctrl+T shows tool / bash output</text>
+    </g>
+    <g transform="translate(1090 168)">
+      <rect width="446" height="132" rx="22" fill="url(#glass)" stroke="#2A3851"/>
+      <text x="28" y="43" class="step" fill="#A78BFA">03 / COPY</text>
+      <text x="28" y="84" class="heading">Enter or click</text>
+      <text x="28" y="116" class="body">Raw text, with line breaks</text>
+    </g>
+    <g transform="translate(1090 330)">
+      <rect width="446" height="112" rx="22" fill="url(#glass)" stroke="#285348"/>
+      <text x="28" y="43" class="step" fill="#34D399">04 / CLIPBOARD</text>
+      <text x="28" y="85" class="body">Local delivery checked</text>
+      <g transform="translate(366 28)" fill="none" stroke="#6EE7B7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="0" y="7" width="36" height="46" rx="5"/><rect x="9" y="0" width="18" height="14" rx="3" fill="#172238"/>
+        <path d="M10 27h16M10 37h12"/>
+      </g>
+    </g>
+  </g>
+  <text x="64" y="486" class="sans" font-size="24" fill="#91A0B8">Unavailable or remote clipboard delivery produces a warning.</text>
+</svg>

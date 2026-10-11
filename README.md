@@ -1,167 +1,73 @@
-# pi copy-message extension
+# pi-copy-message
 
-A [pi](https://github.com/earendil-works/pi-mono) extension that adds `/copy-message`: a keyboard-first picker for copying raw session message text without terminal wrapping, padding, or rendered TUI artifacts. It also adds `/copy-user` as a direct shortcut for the most recent user message.
+A [Pi](https://github.com/earendil-works/pi-mono) extension for copying message text from your session. Search for an old prompt or answer, then copy it with its code, spacing, and line breaks intact.
 
-`pi-copy-message` supersedes [`pi-copy-user-message`](https://github.com/fitchmultz/pi-copy-user-message), which only copied the most recent user message.
+![Open /copy-message, search session history, press Enter or click a message, and copy its raw text to the clipboard.](.github/readme/copy-flow.png)
 
-## What it does
+*Find a message in your session, then copy its text; local clipboard readback checks delivery.*
 
-- Adds `/copy-message`
-- Adds `/copy-user` for copying the most recent user message directly
-- Copies raw stored session message text, not rendered terminal lines
-- Shows messages in chat order: oldest at top, newest at bottom
-- Selects the newest visible message by default
-- Supports role filters for user, assistant, tool/bash, and custom messages
-- Hides tool/bash messages by default
-- Supports type-to-filter search across role and message text, with `time:<term>` for timestamp search
-- Supports Home/End jumps for oldest/newest visible messages
-- Uses Pi's configured selection bindings for navigation, copy, and cancel
-- Keeps Pi's platform clipboard writes and OSC 52 fallback, but reports success only after local text readback
-- Includes fast paths: `/copy-message latest`, `/copy-message last`, and `/copy-message newest`, using Pi's canonical active context
-- Supports direct numbered copies like `/copy-message 3`
-- Supports metadata copies with `--with-meta`, `--with-metadata`, or `--with-role`
+## Install and start
 
-## Install
-
-Install it from npm with pi:
+Requires **Pi 1.0.0 or later** and **Node.js 24.15.0 or later**.
 
 ```bash
 pi install npm:pi-copy-message
 ```
 
-Or install it directly from GitHub with pi:
-
-```bash
-pi install https://github.com/fitchmultz/pi-copy-message
-```
-
-Use `/reload` after updating extension code on current official Pi and the maintained fork. Restart Pi after changing dependencies or the host runtime.
-
-If you prefer to load it directly from a local checkout during development:
-
-```bash
-pi -e ./extensions/copy-message.ts
-```
-
-## Usage
-
-Open the picker:
+Start Pi, or run `/reload` in an open session. Then enter:
 
 ```text
 /copy-message
 ```
 
-Copy the most recent user message directly:
+Type a few words to find a message, use ↑ / ↓ to select it, and press Enter to copy. The picker starts on the newest visible message.
 
-```text
-/copy-user
-```
+Prefer GitHub? Use `pi install https://github.com/fitchmultz/pi-copy-message` instead. Restart Pi after changing dependencies or the host runtime.
 
-Copy the latest visible default message directly:
+## Quick copies
 
-```text
-/copy-message latest
-```
+Use these commands inside Pi when you already know what you want:
 
-Aliases:
-
-```text
-/copy-message last
-/copy-message newest
-```
-
-Copy the 3rd default-visible message directly, matching the picker's 1-based oldest-to-newest numbering:
-
-```text
-/copy-message 3
-```
-
-Copy with role and timestamp metadata instead of raw text only:
-
-```text
-/copy-message latest --with-meta
-/copy-message 3 --with-role
-/copy-user --with-meta
-```
-
-## Keyboard controls
-
-| Key | Action |
+| Command | What it copies |
 |---|---|
-| Configured `tui.select.up` (default: `↑`) | Move to older visible message |
-| Configured `tui.select.down` (default: `↓`) | Move to newer visible message |
-| Configured `tui.select.pageUp` / `tui.select.pageDown` (default: `PageUp` / `PageDown`) | Move by one visible page in regular mode |
-| `Ctrl+PageUp` / `Ctrl+PageDown` | Move by one visible page in fullscreen mode |
-| `Home` / `End` | Jump to oldest/newest visible message in regular mode |
-| `Ctrl+Home` / `Ctrl+End` | Jump to oldest/newest visible message in fullscreen mode |
-| Type or paste text | Filter visible messages; pasted line breaks and tabs become spaces |
-| `time:<term>` | Search timestamps |
-| `Backspace` | Delete one search character |
-| `Ctrl+U` | Toggle user messages |
-| `Ctrl+A` | Toggle assistant messages |
-| `Ctrl+T` | Toggle tool/bash messages |
-| `Alt+C` | Toggle custom messages |
-| `Tab` | Toggle a wrapped preview of the selected message |
-| `Alt+M` | Toggle raw vs metadata copy format |
-| Configured `tui.select.confirm` (default: `Enter`) | Copy selected message text |
-| Configured `tui.select.cancel` (default: `Esc`/`Ctrl+C`) | Cancel |
+| `/copy-user` | Your most recent message with text |
+| `/copy-message latest` | The latest default-visible message in Pi's active context |
+| `/copy-message 3` | The third default-visible message in branch history, counted oldest to newest |
+| `/copy-message latest --with-meta` | The latest message with its role and local time, when available |
 
-## Behavior notes
+`last` and `newest` are aliases for `latest`. `--with-metadata` and `--with-role` are aliases for `--with-meta`; the flag also works with `/copy-user` and numbered copies.
 
-- Entry IDs are hidden from the picker.
-- Mouse wheel navigates; clicking a message copies it and returns keyboard focus to the unchanged draft.
-- Session replacement, tree navigation, shutdown and reload cancel pending pickers without stale-context notifications.
-- The picker caps visible rows and scrolls instead of filling the screen.
-- Search preserves your original selected message and restores it when the search is cleared.
-- General search does not match timestamps; use `time:<term>` when you want to search by displayed time.
-- Picker previews and copy notifications remove terminal control characters; the copied text stays raw.
-- Filter labels honor the active pi theme.
-- Selection key hints show the active Pi bindings. Configured selection actions take precedence if they collide with the picker's filter, preview, or format shortcuts.
-- Only custom messages with `display: true` can appear or be copied from current `custom_message` entries or legacy message-wrapped entries; visible ones can be toggled with `Alt+C`.
-- A verified local copy notification includes the role and a short preview. Unavailable, empty or mismatched readback warns instead of claiming success; rejected writes report an error. Remote terminal delivery via OSC 52 cannot be verified, even when the remote machine's local clipboard matches.
-- Native clipboard reads are preferred where available. Bounded platform readers preserve exact text, including newlines; the extension never replaces Pi's working write fallback chain.
-- `latest` uses Pi's canonical session projection, honoring context edits, omissions and compaction. Numbered selectors, the picker and `/copy-user` retain raw active-branch history, including older pre-compaction messages.
-- `/copy-message latest` and numbered selectors include user, assistant, and visible custom messages by default while hiding tool/bash messages. `Alt+C` only affects the picker. If only hidden messages exist, `latest` falls back to the newest message so the command still does something useful.
-- `/copy-message` with no direct selector requires interactive TUI mode because the picker is a custom TUI component.
-- Direct commands such as `/copy-user`, `/copy-message latest`, and `/copy-message 3` do not require TUI mode, though non-UI modes may not display notifications.
+The picker, numbered copies, and `/copy-user` use stored messages on your current branch, including history from before compaction. `latest` uses Pi's active context, so it follows context edits, omissions, and compaction.
 
-## Compatibility
+## Find the right message
 
-- Requires Pi 1.0.0 or later. CI and standalone/packed qualification use the latest stable official Pi and latest maintained fork `main`, resolving the version/commit once per workflow run and retaining exact SDK/CLI evidence. Locked development dependencies are reproducible snapshots, not qualification targets; the support floor does not make fork qualification optional.
-- The picker coalesces legacy in-progress assistant snapshots within their context-window boundaries so each response appears once. Current official Pi and the maintained fork no longer write those legacy boundaries.
-- Android/Termux clipboard writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable.
-- Pi includes `Ctrl+X` for copying the latest assistant response; this extension remains useful for searchable history, other roles, metadata, and direct selectors.
-- Node.js `>=24.15.0`. `.nvmrc` pins Node 24.21.0 for local development.
+Messages run oldest to newest. User, assistant, and visible custom messages appear by default. Press `Ctrl+T` to include tool and bash output; `Ctrl+U`, `Ctrl+A`, and `Alt+C` toggle the other roles.
 
-This package keeps pi core packages as wildcard peers (`*`) per pi package guidance. Pi aliases these imports to its own bundled copies when loading the extension, so the package never bundles or shadows pi core. Local development uses `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` as dev dependencies for typechecking and tests.
+Type or paste to search roles and message text. Search ignores case and matches every word you enter. Use `time:<term>` to search displayed timestamps.
 
-For latest-host qualification, run `node /path/to/automation/scripts/qualify.mjs --repo pi-copy-message --source "$PWD" --host official --target latest --output /tmp/pi-copy-message-official`, then qualify the packed latest maintained fork with `--host fork --target /path/to/fork-package`. Plain `npm ci` checks only the locked development snapshot, not latest qualification.
+Press Tab to preview the message, or Alt+M to add its role and time to the copied text. Enter copies; Esc or Ctrl+C cancels. The mouse wheel moves the selection, and clicking a message copies it.
 
-## Automatic npm releases (maintainers)
+If you've changed Pi's selection bindings, the picker uses them and shows the active key hints. Your bindings take precedence when they overlap with picker shortcuts.
 
-Follow the [shared release procedure](https://github.com/fitchmultz/.github#automatic-npm-releases): merge a reviewed PR into `main` with an intentional `package.json` version bump and a matching versioned `CHANGELOG.md` section. Once configured and enabled, publication is unattended after the existing compatibility checks and candidate-tarball qualification pass. Complete any applicable package-specific release evidence before merging the bump. Automation never bumps versions, overwrites releases, or republishes an existing version; existing manual publisher instructions remain valid.
+See the [full keyboard controls and behavior reference](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/reference.md) for page jumps, fullscreen controls, and selection details.
 
-Failed/unpublished candidates can retry daily at 12:17 UTC or via manual dispatch of `npm release` on `main`, without another bump. Set repository variable `NPM_RELEASE_ENABLED` to anything other than `true` to stop new release plans; cancel pending runs separately when needed. Workflow validation is not evidence of a completed real OIDC publication.
+## Clipboard behavior
 
-## Development
+Copied text keeps the stored message's code, spacing, and line breaks. Previews and notifications remove terminal control characters for safe display; the clipboard text stays raw. Copying or cancelling returns you to your unchanged draft.
 
-```bash
-npm ci
-npm run check # node --test + tsc --noEmit + pack dry-run
-```
+The extension uses Pi's clipboard support, including its OSC 52 terminal fallback. You'll see a “Copied” notification only when local clipboard readback matches the text. Unverified delivery gets a warning, and a failed write reports an error. Over SSH or another remote terminal connection, delivery to your own clipboard can't be verified, even if the remote machine's clipboard matches.
 
-No production build or `prepare` is required. Tests run TypeScript directly with Node's type stripping, so source must stay erasable (`erasableSyntaxOnly`). Qualification uses the selected host installed in this checkout's dependency graph. The tests cover formatting, native command execution, canonical context and branch selection, both TUI modes, pointer focus and pending-picker disposal. Native addon interception and an isolated command PATH keep test clipboard writes in temporary fixture files, never the operator clipboard. Actual Android/Termux, Windows/WSL and remote terminal delivery still require platform qualification.
+The picker requires interactive TUI mode. Direct commands (`/copy-user`, `latest`, and numbered copies) also work outside TUI mode, where notifications may not be shown. More [platform and delivery details](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/reference.md#clipboard-delivery) are in the reference.
 
-Completion cases belong to registered command hooks; filter/search and copy-format cases belong to the picker and native delivery, not duplicate private-helper tests.
+## Docs and support
 
-`package-lock.json` must only reference `registry.npmjs.org`; a test fails on private-registry URLs. Behind a registry proxy that rewrites tarball URLs, refresh the lock from public metadata and install through the proxy:
+- [Reference](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/reference.md) — all controls, message selection, and platform notes.
+- [Development](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/development.md) — tests, host qualification, and maintainer release procedure.
+- [Changelog](CHANGELOG.md) — release history.
+- [Issues](https://github.com/fitchmultz/pi-copy-message/issues) — report a problem or suggest an improvement.
 
-```bash
-npm install --package-lock-only --ignore-scripts --registry=https://registry.npmjs.org/
-npm ci
-```
+Pi's built-in Ctrl+X copies the latest assistant response. This extension adds searchable history, other roles, metadata, and direct selectors. It supersedes [pi-copy-user-message](https://github.com/fitchmultz/pi-copy-user-message), which only copied the most recent user message.
 
-Key files:
+## License
 
-- `extensions/copy-message.ts` — publishable extension implementation
-- `tests/copy-message.test.ts` — regression tests for command wiring, filtering, search, navigation, and copy formatting
+[MIT](LICENSE) · Mitch Fultz
