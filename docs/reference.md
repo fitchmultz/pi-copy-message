@@ -2,6 +2,8 @@
 
 [Back to the README](../README.md)
 
+Pi's built-in Ctrl+X copies the latest assistant response. This extension adds searchable history, other roles, metadata, and direct selectors. It supersedes [pi-copy-user-message](https://github.com/fitchmultz/pi-copy-user-message), which only copied the most recent user message.
+
 ## Commands and copy format
 
 `/copy-message` opens the picker. `/copy-user` directly copies the most recent user message with nonblank text.

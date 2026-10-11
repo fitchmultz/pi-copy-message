@@ -1,72 +1,75 @@
 # pi-copy-message
 
-A [Pi](https://github.com/earendil-works/pi-mono) extension for copying message text from your session. Search for an old prompt or answer, then copy it with its code, spacing, and line breaks intact.
+Copy message text from a [Pi](https://github.com/earendil-works/pi-mono) session with a searchable picker. The copied text keeps the original code, spaces, and line breaks.
 
-![Open /copy-message, search session history, press Enter or click a message, and copy its raw text to the clipboard.](.github/readme/copy-flow.png)
+![Flow from the /copy-message command through message search and selection to the clipboard.](.github/readme/copy-flow.png)
 
-*Find a message in your session, then copy its text; local clipboard readback checks delivery.*
+*The picker sends the selected message text to Pi's clipboard support.*
 
 ## Install and start
 
-Requires **Pi 1.0.0 or later** and **Node.js 24.15.0 or later**.
+This extension requires Pi 1.0.0 or later and Node.js 24.15.0 or later.
+
+Run this command:
 
 ```bash
 pi install npm:pi-copy-message
 ```
 
-Start Pi, or run `/reload` in an open session. Then enter:
+Start Pi. Run `/reload` if Pi is already open.
+
+Enter this command in Pi:
 
 ```text
 /copy-message
 ```
 
-Type a few words to find a message, use ↑ / ↓ to select it, and press Enter to copy. The picker starts on the newest visible message.
+Type words to search roles and message text. Use ↑ or ↓ to select a message. Press Enter to copy the message.
 
-Prefer GitHub? Use `pi install https://github.com/fitchmultz/pi-copy-message` instead. Restart Pi after changing dependencies or the host runtime.
+## Use the picker
 
-## Quick copies
+Messages appear from oldest to newest. The picker selects the newest visible message first.
 
-Use these commands inside Pi when you already know what you want:
+User, assistant, and visible custom messages appear by default. Tool and bash messages stay hidden.
+
+| Key | Action |
+|---|---|
+| Ctrl+T | Show or hide tool and bash messages |
+| Ctrl+U / Ctrl+A / Alt+C | Show or hide user, assistant, or custom messages |
+| Tab | Preview the selected message |
+| Alt+M | Switch between raw text and text with role/time metadata |
+| Esc / Ctrl+C | Cancel |
+
+The picker uses your Pi selection bindings. Its key hints show those bindings.
+
+## Direct copies
 
 | Command | What it copies |
 |---|---|
 | `/copy-user` | Your most recent message with text |
 | `/copy-message latest` | The latest default-visible message in Pi's active context |
-| `/copy-message 3` | The third default-visible message in branch history, counted oldest to newest |
+| `/copy-message 3` | The third default-visible message, counted oldest to newest |
 | `/copy-message latest --with-meta` | The latest message with its role and local time, when available |
 
-`last` and `newest` are aliases for `latest`. `--with-metadata` and `--with-role` are aliases for `--with-meta`; the flag also works with `/copy-user` and numbered copies.
+`latest` follows Pi's active context, including context edits, omissions, and compaction. The picker, numbered copies, and `/copy-user` use stored messages on the current branch, including history before compaction.
 
-The picker, numbered copies, and `/copy-user` use stored messages on your current branch, including history from before compaction. `latest` uses Pi's active context, so it follows context edits, omissions, and compaction.
+## Limits and clipboard
 
-## Find the right message
+The picker requires interactive TUI mode. Direct commands also work outside TUI mode, where Pi may hide notifications.
 
-Messages run oldest to newest. User, assistant, and visible custom messages appear by default. Press `Ctrl+T` to include tool and bash output; `Ctrl+U`, `Ctrl+A`, and `Alt+C` toggle the other roles.
+The extension uses Pi's clipboard support and OSC 52 fallback. It reports “Copied” only after local clipboard readback matches the copied text.
 
-Type or paste to search roles and message text. Search ignores case and matches every word you enter. Use `time:<term>` to search displayed timestamps.
+Unverified delivery produces a warning. A failed write produces an error.
 
-Press Tab to preview the message, or Alt+M to add its role and time to the copied text. Enter copies; Esc or Ctrl+C cancels. The mouse wheel moves the selection, and clicking a message copies it.
+The extension cannot verify remote terminal delivery. Paste into a local editor to check delivery.
 
-If you've changed Pi's selection bindings, the picker uses them and shows the active key hints. Your bindings take precedence when they overlap with picker shortcuts.
-
-See the [full keyboard controls and behavior reference](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/reference.md) for page jumps, fullscreen controls, and selection details.
-
-## Clipboard behavior
-
-Copied text keeps the stored message's code, spacing, and line breaks. Previews and notifications remove terminal control characters for safe display; the clipboard text stays raw. Copying or cancelling returns you to your unchanged draft.
-
-The extension uses Pi's clipboard support, including its OSC 52 terminal fallback. You'll see a “Copied” notification only when local clipboard readback matches the text. Unverified delivery gets a warning, and a failed write reports an error. Over SSH or another remote terminal connection, delivery to your own clipboard can't be verified, even if the remote machine's clipboard matches.
-
-The picker requires interactive TUI mode. Direct commands (`/copy-user`, `latest`, and numbered copies) also work outside TUI mode, where notifications may not be shown. More [platform and delivery details](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/reference.md#clipboard-delivery) are in the reference.
+Restart Pi after you change dependencies or the Pi runtime.
 
 ## Docs and support
 
-- [Reference](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/reference.md) — all controls, message selection, and platform notes.
-- [Development](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/development.md) — tests, host qualification, and maintainer release procedure.
-- [Changelog](CHANGELOG.md) — release history.
-- [Issues](https://github.com/fitchmultz/pi-copy-message/issues) — report a problem or suggest an improvement.
+The [reference](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/reference.md) lists all controls, command aliases, and clipboard details. The [development guide](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/development.md) covers tests and releases.
 
-Pi's built-in Ctrl+X copies the latest assistant response. This extension adds searchable history, other roles, metadata, and direct selectors. It supersedes [pi-copy-user-message](https://github.com/fitchmultz/pi-copy-user-message), which only copied the most recent user message.
+[Changelog](CHANGELOG.md) · [Report an issue](https://github.com/fitchmultz/pi-copy-message/issues)
 
 ## License
 
