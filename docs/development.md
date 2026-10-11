@@ -2,6 +2,14 @@
 
 [Back to the README](../README.md)
 
+## Install from GitHub
+
+Pi can also install this package directly from GitHub:
+
+```bash
+pi install https://github.com/fitchmultz/pi-copy-message
+```
+
 ## Local checks
 
 Requires Node.js `>=24.15.0`; `.nvmrc` pins Node 24.21.0. The npm version is declared in `package.json`.
