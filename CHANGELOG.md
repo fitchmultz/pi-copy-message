@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Cancel pending copy pickers when the host disposes their UI, including during reload, without interrupting sibling dialog teardown.
+
 ## 4.0.0 - 2026-10-01
 
 - Require Pi 1.0.0 and pin the official 1.0.0 development cohort.

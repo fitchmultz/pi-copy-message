@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { type KeyId, KeybindingsManager, setKittyProtocolActive, TUI_KEYBINDINGS, visibleWidth } from "@earendil-works/pi-tui";
 
 import extension, {
@@ -621,4 +621,36 @@ test("page and Ctrl jumps restore selection after search", () => {
 test("package lock excludes WorkOS URLs", () => {
 	const lock = readFileSync(new URL("../package-lock.json", import.meta.url), "utf8");
 	assert.doesNotMatch(lock, /(?:[a-z][a-z0-9+.-]*:)?\/\/[^\s"]*(?:workos|socket-firewall)/i);
+});
+
+
+test("picker disposal defers host completion and rejects reentrant input", async () => {
+	let component: { dispose?(): void; handleInput?(data: string): void } | undefined;
+	let disposing = false;
+	let completions = 0;
+	const ctx = {
+		mode: "tui",
+		sessionManager: { getBranch: () => [{ type: "message", id: "user", message: { role: "user", content: "Do not copy after disposal" } }] },
+		ui: {
+			notify: () => assert.fail("Disposed picker must not notify or copy"),
+			custom: (factory: (_tui: unknown, theme: unknown, keys: unknown, done: (value: unknown) => void) => NonNullable<typeof component>) =>
+				new Promise((resolve) => {
+					component = factory(undefined, plainTheme, new KeybindingsManager(TUI_KEYBINDINGS), (value) => {
+						assert.equal(disposing, false, "Host completion must not mutate an active disposal iteration");
+						completions++;
+						resolve(value);
+					});
+				}),
+		},
+	} as unknown as ExtensionCommandContext;
+	const command = captureRegisteredCommands().get("copy-message")!.handler("", ctx);
+	assert.ok(component?.dispose);
+	disposing = true;
+	component.dispose();
+	component.dispose();
+	component.handleInput?.("\r");
+	assert.equal(completions, 0);
+	disposing = false;
+	await command;
+	assert.equal(completions, 1, "Repeated disposal and late confirm complete cancellation only once");
 });

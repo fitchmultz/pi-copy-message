@@ -693,15 +693,22 @@ async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessa
 	if (signal.aborted) return null;
 	return ctx.ui.custom<{ message: CopyableMessage; text: string } | null>((tui, theme, keybindings, done) => {
 		const state = new CopyMessagePickerState(messages, initialFormat);
-		const abort = () => done(null);
+		let settled = false;
+		const finish = (result: Parameters<typeof done>[0], defer = false) => {
+			if (settled) return;
+			settled = true;
+			if (defer) queueMicrotask(() => done(result));
+			else done(result);
+		};
+		const abort = () => finish(null);
 		if (signal.aborted) abort();
 		else signal.addEventListener("abort", abort, { once: true });
 		const act = (result: PickerInputResult) => {
 			if (result === "copy") {
 				const selected = state.selectedMessage();
 				const text = state.selectedCopyText();
-				done(selected && text !== undefined ? { message: selected, text } : null);
-			} else if (result === "cancel") done(null);
+				finish(selected && text !== undefined ? { message: selected, text } : null);
+			} else if (result === "cancel") finish(null);
 			else if (result === "render") tui.requestRender();
 		};
 		return {
@@ -715,7 +722,12 @@ async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessa
 				act(result);
 				if (result !== "none") return { handled: true, focus: result === "render" };
 			},
-			dispose: () => signal.removeEventListener("abort", abort),
+			dispose() {
+				signal.removeEventListener("abort", abort);
+				// Settle even if disposal precedes session_shutdown. Defer the host callback:
+				// it can remove this component from a live dialog-disposal iteration.
+				finish(null, true);
+			},
 		};
 	});
 }
