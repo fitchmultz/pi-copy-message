@@ -151,7 +151,7 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
       assert.equal(clipboard().text, "Stored answer");
       terminal.send("!"); assert.match(context!.ui.getEditorText(), /!!$/);
     });
-    await t.test("tree and replacement cancel pending pickers; fork/resume/reload keep active-branch selection", async () => {
+    await t.test("tree and replacement cancel pending pickers; fork/resume keep active-branch selection", async () => {
       const before = writes().length;
       let picker = runtime.session.prompt("/copy-message"); await rendered();
       assert.equal((await context!.navigateTree(answer, { summarize: false })).cancelled, false); await picker;
@@ -172,11 +172,27 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
       assert.equal((await context!.switchSession(journal)).cancelled, false);
       await picker;
       await runtime.session.prompt("/qa-context");
-      picker = runtime.session.prompt("/copy-message"); await rendered();
-      await context!.reload(); await picker;
-      await runtime.session.prompt("/qa-context");
       await runtime.session.prompt("/copy-message latest"); assert.equal(clipboard().text, "New branch marker");
       assert.equal(writes().length, before + 2);
+    });
+    await t.test("reload disposal settles the pending picker without a clipboard write", async () => {
+      const before = writes().length;
+      const picker = runtime.session.prompt("/copy-message");
+      let settled = false;
+      void picker.then(() => { settled = true; });
+      await rendered();
+      await context!.reload();
+      await runtime.session.prompt("/qa-context");
+      await rendered();
+      // Reload disposes custom UI before session_shutdown on the maintained fork.
+      // Assert settlement before awaiting: regressions fail here, not at the parent deadline.
+      assert.equal(settled, true, "disposed picker command must settle after reload");
+      await picker;
+      assert.equal(writes().length, before);
+      await runtime.session.prompt("/copy-message latest");
+      assert.equal(clipboard().text, "New branch marker");
+      terminal.send("!");
+      assert.match(context!.ui.getEditorText(), /!$/);
     });
     await t.test("an already-dispatched clipboard operation cannot notify a replaced session", async () => {
       state({ write: "delay" });
