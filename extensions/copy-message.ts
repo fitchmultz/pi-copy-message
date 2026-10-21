@@ -694,10 +694,11 @@ async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessa
 	return ctx.ui.custom<{ message: CopyableMessage; text: string } | null>((tui, theme, keybindings, done) => {
 		const state = new CopyMessagePickerState(messages, initialFormat);
 		let settled = false;
-		const finish: typeof done = (result) => {
+		const finish = (result: Parameters<typeof done>[0], defer = false) => {
 			if (settled) return;
 			settled = true;
-			done(result);
+			if (defer) queueMicrotask(() => done(result));
+			else done(result);
 		};
 		const abort = () => finish(null);
 		if (signal.aborted) abort();
@@ -723,8 +724,9 @@ async function pickMessage(ctx: ExtensionCommandContext, messages: CopyableMessa
 			},
 			dispose() {
 				signal.removeEventListener("abort", abort);
-				// Hosts can dispose custom UI before emitting session_shutdown (for example on reload).
-				finish(null);
+				// Settle even if disposal precedes session_shutdown. Defer the host callback:
+				// it can remove this component from a live dialog-disposal iteration.
+				finish(null, true);
 			},
 		};
 	});

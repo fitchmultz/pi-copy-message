@@ -194,6 +194,42 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
       terminal.send("!");
       assert.match(context!.ui.getEditorText(), /!$/);
     });
+    await t.test("picker completion preserves sibling disposal during native reload", async () => {
+      let disposals = 0;
+      const sibling = () => {
+        let complete!: (value: null) => void;
+        const closed = context!.ui.custom<null>((_tui, _theme, _keys, done) => {
+          complete = done;
+          return { render: () => ["Sibling disposal fixture"], invalidate() {}, dispose() { disposals++; } };
+        });
+        return { closed, complete: () => complete(null) };
+      };
+      // Compare with the host's own sibling-only behavior. Official 1.3.0 does not
+      // dispose inline custom UI at reload; the fork's dialog stack does.
+      const baseline = sibling();
+      await rendered();
+      await context!.reload();
+      await runtime.session.prompt("/qa-context");
+      const expectedDisposals = disposals;
+      baseline.complete(); await baseline.closed;
+
+      const before = disposals;
+      const beforeWrites = writes().length;
+      const picker = runtime.session.prompt("/copy-message");
+      let settled = false;
+      void picker.then(() => { settled = true; });
+      await rendered();
+      const peer = sibling();
+      await rendered();
+      await context!.reload();
+      await runtime.session.prompt("/qa-context");
+      await rendered();
+      assert.equal(disposals - before, expectedDisposals, "Picker completion must not skip a sibling's native disposal");
+      assert.equal(settled, true);
+      await picker;
+      peer.complete(); await peer.closed;
+      assert.equal(writes().length, beforeWrites);
+    });
     await t.test("an already-dispatched clipboard operation cannot notify a replaced session", async () => {
       state({ write: "delay" });
       const before = notes.length;
