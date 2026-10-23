@@ -123,6 +123,65 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
       delete process.env.SSH_CONNECTION;
     });
 
+    await t.test("native picker bounds long-preview enumeration across redraws and navigation", async (t) => {
+      const ascii = "x".repeat(4096);
+      const unicode = "e\u0301👩‍💻🇺🇸界".repeat(256);
+      const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+      const expected = (text: string, max: number) => {
+        const parts = Array.from(segmenter.segment(text), (part) => part.segment);
+        return parts.length <= max ? text : parts.slice(0, max - 1).join("") + "…";
+      };
+      const previews = [ascii, unicode].map((text) => expected(text, 300));
+      const notification = expected(unicode, 48);
+      manager.appendMessage({ role: "user", content: ascii, timestamp: Date.UTC(2026, 9, 22) });
+      const unicodeEntry = manager.appendMessage({ role: "user", content: unicode, timestamp: Date.UTC(2026, 9, 22) });
+      const iterator = segmenter.segment("")[Symbol.iterator]();
+      const prototype = Object.getPrototypeOf(iterator) as typeof iterator;
+      const next = prototype.next;
+      const counts = new Map<object, { text: string; yields: number }>();
+      // Count actual native iterator yields, not elapsed time or ICU preprocessing.
+      const counter = t.mock.method(prototype, "next", function (this: typeof iterator) {
+        const result = next.call(this);
+        if (!result.done && (result.value.input === ascii || result.value.input === unicode)) {
+          const record = counts.get(this) ?? { text: result.value.input, yields: 0 };
+          record.yields++;
+          counts.set(this, record);
+        }
+        return result;
+      });
+      const before = writes().length;
+      terminal.resize(1000, 30);
+      const picker = runtime.session.prompt("/copy-message");
+      const work: number[][] = [];
+      for (const action of [() => {}, () => terminal.resize(1000, 31), () => terminal.send("\x1b[A")]) {
+        counts.clear(); action(); await rendered();
+        work.push([...counts.values()].map((record) => record.yields));
+        for (const preview of previews) assert.ok(screen().some((line) => line.includes(preview)));
+        for (const text of [ascii, unicode]) assert.ok([...counts.values()].some((record) => record.text === text));
+      }
+      terminal.send("\x1b"); await picker;
+      assert.equal(writes().length, before, "render/redraw/navigation must not write the clipboard");
+      counter.mock.restore();
+      t.diagnostic(`native long-preview yields (open/redraw/up): ${JSON.stringify(work)}`);
+      for (const render of work) for (const yields of render) assert.ok(yields <= 301, `${yields} yields exceeds the 300-preview lookahead bound`);
+
+      // Existing isolated native delivery, never the operator clipboard.
+      state({}); await runtime.session.prompt("/copy-user");
+      assert.equal(clipboard().text, unicode);
+      assert.equal(notes.at(-1)?.text, `Copied user message: “${notification}”`);
+      await runtime.session.prompt("/copy-user --with-meta");
+      assert.ok(clipboard().text.endsWith(": " + unicode));
+      const parts = Array.from(segmenter.segment(unicode), (part) => part.segment);
+      for (const length of [47, 48, 49]) {
+        const text = parts.slice(0, length).join("");
+        manager.appendContextEdit(unicodeEntry, { content: text });
+        await runtime.session.prompt("/copy-message latest");
+        assert.equal(clipboard().text, text);
+        assert.equal(notes.at(-1)?.text, `Copied user message: “${expected(text, 48)}”`);
+      }
+      terminal.resize(100, 30);
+    });
+
     state({});
     for (const tuiMode of ["fullscreen", "regular"] as const) {
       (mode as unknown as { switchTuiMode(mode: string): boolean }).switchTuiMode(tuiMode);
