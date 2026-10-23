@@ -65,10 +65,14 @@ function splitGraphemes(text: string): string[] {
 
 function truncateGraphemes(text: string, max: number): string {
 	if (max <= 0) return "";
-	const graphemes = splitGraphemes(text);
-	if (graphemes.length <= max) return text;
-	if (max === 1) return "…";
-	return `${graphemes.slice(0, max - 1).join("")}…`;
+	let count = 0;
+	let prefixEnd = 0;
+	for (const { index } of graphemeSegmenter.segment(text)) {
+		if (count === max) return `${text.slice(0, prefixEnd)}…`;
+		if (count === max - 1) prefixEnd = index;
+		count++;
+	}
+	return text;
 }
 
 function safeDisplayText(text: string): string {

@@ -64,6 +64,30 @@ test("previews strip terminal control sequences", () => {
 	assert.ok(roleState.render(120, plainTheme).every((line) => !/[\x1b\r\n\t]/.test(line)));
 });
 
+test("picker previews retain full-split output at grapheme boundaries", () => {
+	const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+	const patterns = ["a", "e\u0301", "👨‍👩‍👧‍👦", "🇺🇸", "界", "\ud800", "\udc00", "a\r\nb", " a\t b ", "a\x1bb"];
+	for (const pattern of patterns) {
+		for (const length of [0, 1, 2, 48, 298, 299, 300, 301]) {
+			const text = pattern.repeat(length);
+			// The old full-split rule is the output oracle, after existing sanitization.
+			const compact = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, "").replace(/\s+/gu, " ").trim();
+			const parts = Array.from(segmenter.segment(compact), (part) => part.segment);
+			const preview = parts.length <= 300 ? compact : parts.slice(0, 299).join("") + "…";
+			const message = copyableMessage("a0", "user", text, 0);
+			const state = new CopyMessagePickerState([message]);
+			const expected = new CopyMessagePickerState([{ ...message, text: preview }]);
+			for (const width of [1, 44]) assert.deepEqual(state.render(width, plainTheme), expected.render(width, plainTheme));
+			// A short sentinel keeps the wide oracle independent of candidate truncation,
+			// especially when the original fits exactly at 300 graphemes.
+			const template = new CopyMessagePickerState([{ ...message, text: "preview sentinel" }]);
+			const wide = template.render(1000, plainTheme).map((line) => line.replace("  preview sentinel", preview ? "  " + preview : ""));
+			assert.deepEqual(state.render(1000, plainTheme), wide);
+			assert.equal(state.selectedCopyText(), text);
+		}
+	}
+});
+
 test("bracketed paste extends search without submitting", () => {
 	const messages = [
 		copyableMessage("a0", "assistant", "invoice 123", 0),
