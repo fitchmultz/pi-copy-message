@@ -343,22 +343,25 @@ function renderMessageLine(
 
 function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMessageTheme, format: CopyFormat): string[] {
 	const contentWidth = Math.max(1, width - 2);
+	const columnWindow = contentWidth * (MAX_PEEK_LINES + 1);
 	const text = safeDisplayText(formatMessageForCopy(message, format));
 	let prefix = "";
 	let wrapped = [""];
-	let nextWrapLength = contentWidth * (MAX_PEEK_LINES + 1);
+	let nextWrapLength = columnWindow;
 	// Keep native word boundaries, but a long run only needs enough columns to
 	// fill the preview plus overflow. Separate whitespace even inside words so
 	// clipping cannot hide a later CJK boundary or change a word's whitespace kind.
 	for (const [token] of text.matchAll(/ +|[^\S \r\n]+|\S+|\r\n|[\r\n]/g)) {
 		let end = token.length;
-		let columns = 0;
-		for (const { index, segment } of graphemeSegmenter.segment(token)) {
-			if (columns >= contentWidth * (MAX_PEEK_LINES + 1)) {
-				end = index;
-				break;
+		if (token.length > columnWindow || visibleWidth(token) > columnWindow) {
+			let columns = 0;
+			for (const { index, segment } of graphemeSegmenter.segment(token)) {
+				if (columns >= columnWindow) {
+					end = index;
+					break;
+				}
+				columns += Math.min(contentWidth, visibleWidth(segment));
 			}
-			columns += Math.min(contentWidth, visibleWidth(segment));
 		}
 		prefix += token.slice(0, end);
 		// Geometric checkpoints keep total native prefix work linear, not per-token quadratic.
