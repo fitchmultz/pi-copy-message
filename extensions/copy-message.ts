@@ -344,12 +344,33 @@ function renderMessageLine(
 function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMessageTheme, format: CopyFormat): string[] {
 	const contentWidth = Math.max(1, width - 2);
 	const text = safeDisplayText(formatMessageForCopy(message, format));
-	const wrapped = wrapTextWithAnsi(styleRoleText(theme, message.role, text, false), contentWidth);
+	let prefix = "";
+	let wrapped = [""];
+	// Keep whole words for native word wrapping, but a long word only needs enough
+	// columns to fill the preview plus one overflow row. Long spaces can be clipped
+	// the same way: native wrapping drops an overflowing space run, not its tail.
+	for (const [token] of text.matchAll(/ +|[^ \r\n]+|\r\n|[\r\n]/g)) {
+		let end = token.length;
+		let columns = 0;
+		for (const { index, segment } of graphemeSegmenter.segment(token)) {
+			if (columns >= contentWidth * (MAX_PEEK_LINES + 1)) {
+				end = index;
+				break;
+			}
+			columns += Math.min(contentWidth, visibleWidth(segment));
+		}
+		let window = token.slice(0, end);
+		// Tabs are part of a native word. Preserve its non-whitespace kind when
+		// its visible window contains only tabs; this lookahead cannot be shown.
+		if (window.trim() === "" && token.trim() !== "") window += "x";
+		prefix += window;
+		wrapped = wrapTextWithAnsi(prefix, contentWidth);
+		if (wrapped.length > MAX_PEEK_LINES) break;
+	}
 	const shown = wrapped.slice(0, MAX_PEEK_LINES);
-	const remaining = wrapped.length - shown.length;
 	const title = theme.fg("dim", `Peek ${format === "metadata" ? "metadata" : "raw"} ${roleLabel(message.role)} message`);
-	const lines = [title, ...shown.map((line) => `  ${line}`)];
-	if (remaining > 0) lines.push(theme.fg("dim", `  … ${remaining} more wrapped line${remaining === 1 ? "" : "s"}`));
+	const lines = [title, ...shown.map((line) => `  ${styleRoleText(theme, message.role, line, false)}`)];
+	if (wrapped.length > MAX_PEEK_LINES) lines.push(theme.fg("dim", "  … more text; copy includes full message"));
 	return lines;
 }
 
