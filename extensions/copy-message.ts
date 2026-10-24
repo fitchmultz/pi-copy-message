@@ -349,7 +349,8 @@ function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMes
 	// Keep whole words for native word wrapping, but a long word only needs enough
 	// columns to fill the preview plus one overflow row. Long spaces can be clipped
 	// the same way: native wrapping drops an overflowing space run, not its tail.
-	for (const [token] of text.matchAll(/ +|[^ \r\n]+|\r\n|[\r\n]/g)) {
+	// Separate leading tabs/whitespace so clipping cannot hide a later CJK token.
+	for (const [token] of text.matchAll(/ +|[^\S \r\n]+|[^ \r\n]+|\r\n|[\r\n]/g)) {
 		let end = token.length;
 		let columns = 0;
 		for (const { index, segment } of graphemeSegmenter.segment(token)) {
@@ -359,11 +360,7 @@ function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMes
 			}
 			columns += Math.min(contentWidth, visibleWidth(segment));
 		}
-		let window = token.slice(0, end);
-		// Tabs are part of a native word. Preserve its non-whitespace kind when
-		// its visible window contains only tabs; this lookahead cannot be shown.
-		if (window.trim() === "" && token.trim() !== "") window += "x";
-		prefix += window;
+		prefix += token.slice(0, end);
 		wrapped = wrapTextWithAnsi(prefix, contentWidth);
 		if (wrapped.length > MAX_PEEK_LINES) break;
 	}

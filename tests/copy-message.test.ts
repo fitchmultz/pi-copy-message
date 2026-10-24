@@ -122,6 +122,7 @@ test("peek reflows native word, whitespace, newline and grapheme boundaries", ()
 		"short message", "x".repeat(4096), "word ".repeat(512),
 		"lead" + " ".repeat(4096) + "tail", " ".repeat(4096) + "tail",
 		"\t".repeat(4096) + "tail", "a\t b\u00a0".repeat(512),
+		"\t".repeat(4096) + "界", "\u00a0".repeat(4096) + "界",
 		"e\u0301👩‍💻🇺🇸界".repeat(128), "👨‍👩‍👧‍👦 ".repeat(128),
 		"\n".repeat(20), "\r\nline\rnext\n".repeat(20),
 		"safe\x1b]52;c;payload\x07\r\n".repeat(20),
