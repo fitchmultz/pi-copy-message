@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { type KeyId, KeybindingsManager, setKittyProtocolActive, TUI_KEYBINDINGS, visibleWidth } from "@earendil-works/pi-tui";
+import { type KeyId, KeybindingsManager, setKittyProtocolActive, TUI_KEYBINDINGS, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 import extension, {
 	collectCopyableMessages,
@@ -84,6 +84,88 @@ test("picker previews retain full-split output at grapheme boundaries", () => {
 			const wide = template.render(1000, plainTheme).map((line) => line.replace("  preview sentinel", preview ? "  " + preview : ""));
 			assert.deepEqual(state.render(1000, plainTheme), wide);
 			assert.equal(state.selectedCopyText(), text);
+		}
+	}
+});
+
+// #40: bound native peek work, not just the final displayed array.
+test("Tab peek stops at overflow and retains native wrapping and complete copy text", (t) => {
+	const text = "e\u0301👩‍💻🇺🇸界".repeat(2048);
+	const expected = wrapTextWithAnsi(text, 42).slice(0, 16).map((line) => `  ${line}`);
+	const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+	const iterator = segmenter.segment("")[Symbol.iterator]();
+	const prototype = Object.getPrototypeOf(iterator) as typeof iterator;
+	const next = prototype.next;
+	const counts = new Map<object, number>();
+	t.mock.method(prototype, "next", function (this: typeof iterator) {
+		const result = next.call(this);
+		if (!result.done && result.value.input === text) counts.set(this, (counts.get(this) ?? 0) + 1);
+		return result;
+	});
+	const state = new CopyMessagePickerState([copyableMessage("long", "user", text, 0)]);
+	assert.equal(state.handleInput("\t"), "render");
+	for (let redraw = 0; redraw < 2; redraw++) {
+		counts.clear();
+		const lines = state.render(44, plainTheme);
+		const start = lines.indexOf("Peek raw user message") + 1;
+		assert.ok(start > 0);
+		assert.deepEqual(lines.slice(start, start + 16), expected);
+		assert.match(lines[start + 16], /more/);
+		assert.equal(state.selectedCopyText(), text);
+		assert.ok(counts.size > 0, "observe real native segmentation");
+		for (const count of counts.values()) assert.ok(count <= 42 * 17 + 1, `${count} yields exceeds the peek column window`);
+	}
+});
+
+test("Tab peek bounds total native segmentation for low-column words", (t) => {
+	const text = "\u0301 ".repeat(250);
+	const expected = wrapTextWithAnsi(text, 198).slice(0, 16).map((line) => `  ${line}`);
+	const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+	const iterator = segmenter.segment("")[Symbol.iterator]();
+	const prototype = Object.getPrototypeOf(iterator) as typeof iterator;
+	const next = prototype.next;
+	let yields = 0;
+	t.mock.method(prototype, "next", function (this: typeof iterator) {
+		const result = next.call(this);
+		if (!result.done && result.value.input.length > 300 && result.value.input.startsWith("\u0301 ")) yields++;
+		return result;
+	});
+	const state = new CopyMessagePickerState([copyableMessage("low-column", "user", text, 0)]);
+	state.handleInput("\t");
+	const lines = state.render(200, plainTheme);
+	assert.deepEqual(lines.slice(5, 5 + expected.length), expected);
+	assert.equal(state.selectedCopyText(), text);
+	assert.ok(yields > 0, "observe actual native prefix segmentation");
+	assert.ok(yields <= text.length * 16, `${yields} total yields exceeds the linear work window`);
+});
+
+test("peek reflows native word, whitespace, newline and grapheme boundaries", () => {
+	const fixtures = [
+		"short message", "x".repeat(4096), "word ".repeat(512),
+		"lead" + " ".repeat(4096) + "tail", " ".repeat(4096) + "tail",
+		"\t".repeat(4096) + "tail", "a\t b\u00a0".repeat(512),
+		"\t".repeat(4096) + "界", "\u00a0".repeat(4096) + "界",
+		"界" + "\t".repeat(4096) + "tail", "界" + "\u00a0".repeat(4096) + "tail",
+		"e\u0301👩‍💻🇺🇸界".repeat(128), "👨‍👩‍👧‍👦 ".repeat(128),
+		"\n".repeat(20), "\r\nline\rnext\n".repeat(20),
+		"safe\x1b]52;c;payload\x07\r\n".repeat(20),
+		"x\n".repeat(15) + "last", "x\n".repeat(16),
+	];
+	for (const text of fixtures) {
+		const state = new CopyMessagePickerState([copyableMessage("one", "user", text, 0)]);
+		state.handleInput("\t");
+		for (const format of ["raw", "metadata"]) {
+			if (format === "metadata") state.handleInput("\x1bm");
+			const copied = state.selectedCopyText()!;
+			const safe = copied.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, "");
+			for (const width of [4, 44, 100, 44]) {
+				const wrapped = wrapTextWithAnsi(safe, Math.max(1, width - 2));
+				const lines = state.render(width, plainTheme);
+				const start = 5;
+				assert.deepEqual(lines.slice(start, start + Math.min(16, wrapped.length)), wrapped.slice(0, 16).map((line) => truncateToWidth(`  ${line}`, width, "")), `${format}, width ${width}, fixture ${fixtures.indexOf(text)}`);
+				if (wrapped.length > 16) assert.match(lines[start + 16], /…/);
+			}
+			assert.equal(state.selectedCopyText(), copied);
 		}
 	}
 });

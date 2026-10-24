@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Bound Tab peek wrapping to its visible prefix and overflow row; keep full-text copies unchanged.
+
 - Stop enumerating graphemes once a message preview is known to need truncation; preserve preview and copied text.
 
 - Cancel pending copy pickers when the host disposes their UI, including during reload, without interrupting sibling dialog teardown.

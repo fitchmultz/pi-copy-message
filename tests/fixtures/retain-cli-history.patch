@@ -1,0 +1,34 @@
+diff --git a/scripts/cli-probe.mjs b/scripts/cli-probe.mjs
+index cf6d0c4..95b93bf 100644
+--- a/scripts/cli-probe.mjs
++++ b/scripts/cli-probe.mjs
+@@ -22,13 +22,15 @@ export function probeCli(host, packageDir, directory, env) {
+   const observer = join(directory, "observe.ts");
+   cpSync(fileURLToPath(new URL("observe.ts", import.meta.url)), observer);
+   const observation = join(directory, "observation.json");
++  const input = `${JSON.stringify({ id: "qualification", type: "prompt", message: "/compatibility-probe-internal" })}\n`;
++  writeFileSync(join(directory, "stdin.jsonl"), input);
+   const args = [host.cli, "--offline", "--mode", "rpc", "-ne", "-ns", "-np", "-nc", "--no-themes", "--no-approve",
+     "--no-session", "-e", packageDir, "-e", observer];
+   const result = spawnSync(process.execPath, args, {
+     cwd: directory,
+     env: { ...env, PI_COMPAT_OBSERVATION: observation },
+     encoding: "utf8",
+-    input: `${JSON.stringify({ id: "qualification", type: "prompt", message: "/compatibility-probe-internal" })}\n`,
++    input,
+     timeout: 45_000,
+     maxBuffer: 8 * 1024 * 1024,
+   });
+diff --git a/scripts/observe.ts b/scripts/observe.ts
+index 115d01e..5e79a66 100644
+--- a/scripts/observe.ts
++++ b/scripts/observe.ts
+@@ -10,6 +10,8 @@ export default function (pi: ExtensionAPI) {
+       const packageDir = getPackageDir();
+       const hash = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
+       const manifest = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
++      writeFileSync(process.env.PI_COMPAT_OBSERVATION! + ".session.jsonl",
++        [ctx.sessionManager.getHeader(), ...ctx.sessionManager.getEntries()].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+       writeFileSync(process.env.PI_COMPAT_OBSERVATION!, JSON.stringify({
+         packageDir,
+         version: VERSION,
