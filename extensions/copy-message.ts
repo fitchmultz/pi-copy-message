@@ -346,7 +346,7 @@ function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMes
 	const text = safeDisplayText(formatMessageForCopy(message, format));
 	let prefix = "";
 	let wrapped = [""];
-	let nextWrapLength = contentWidth;
+	let nextWrapLength = contentWidth * (MAX_PEEK_LINES + 1);
 	// Keep native word boundaries, but a long run only needs enough columns to
 	// fill the preview plus overflow. Separate whitespace even inside words so
 	// clipping cannot hide a later CJK boundary or change a word's whitespace kind.
@@ -367,7 +367,7 @@ function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMes
 		if (wrapped.length > MAX_PEEK_LINES) break;
 		nextWrapLength = prefix.length * 2;
 	}
-	wrapped = wrapTextWithAnsi(prefix, contentWidth);
+	if (wrapped.length <= MAX_PEEK_LINES) wrapped = wrapTextWithAnsi(prefix, contentWidth);
 	const shown = wrapped.slice(0, MAX_PEEK_LINES);
 	const title = theme.fg("dim", `Peek ${format === "metadata" ? "metadata" : "raw"} ${roleLabel(message.role)} message`);
 	const lines = [title, ...shown.map((line) => `  ${styleRoleText(theme, message.role, line, false)}`)];
