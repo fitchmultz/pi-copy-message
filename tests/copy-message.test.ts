@@ -117,12 +117,35 @@ test("Tab peek stops at overflow and retains native wrapping and complete copy t
 	}
 });
 
+test("Tab peek bounds total native segmentation for low-column words", (t) => {
+	const text = "\u0301 ".repeat(250);
+	const expected = wrapTextWithAnsi(text, 198).slice(0, 16).map((line) => `  ${line}`);
+	const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+	const iterator = segmenter.segment("")[Symbol.iterator]();
+	const prototype = Object.getPrototypeOf(iterator) as typeof iterator;
+	const next = prototype.next;
+	let yields = 0;
+	t.mock.method(prototype, "next", function (this: typeof iterator) {
+		const result = next.call(this);
+		if (!result.done && result.value.input.length > 300 && result.value.input.startsWith("\u0301 ")) yields++;
+		return result;
+	});
+	const state = new CopyMessagePickerState([copyableMessage("low-column", "user", text, 0)]);
+	state.handleInput("\t");
+	const lines = state.render(200, plainTheme);
+	assert.deepEqual(lines.slice(5, 5 + expected.length), expected);
+	assert.equal(state.selectedCopyText(), text);
+	assert.ok(yields > 0, "observe actual native prefix segmentation");
+	assert.ok(yields <= text.length * 16, `${yields} total yields exceeds the linear work window`);
+});
+
 test("peek reflows native word, whitespace, newline and grapheme boundaries", () => {
 	const fixtures = [
 		"short message", "x".repeat(4096), "word ".repeat(512),
 		"lead" + " ".repeat(4096) + "tail", " ".repeat(4096) + "tail",
 		"\t".repeat(4096) + "tail", "a\t b\u00a0".repeat(512),
 		"\t".repeat(4096) + "界", "\u00a0".repeat(4096) + "界",
+		"界" + "\t".repeat(4096) + "tail", "界" + "\u00a0".repeat(4096) + "tail",
 		"e\u0301👩‍💻🇺🇸界".repeat(128), "👨‍👩‍👧‍👦 ".repeat(128),
 		"\n".repeat(20), "\r\nline\rnext\n".repeat(20),
 		"safe\x1b]52;c;payload\x07\r\n".repeat(20),

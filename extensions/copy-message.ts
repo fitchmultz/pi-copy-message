@@ -346,11 +346,11 @@ function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMes
 	const text = safeDisplayText(formatMessageForCopy(message, format));
 	let prefix = "";
 	let wrapped = [""];
-	// Keep whole words for native word wrapping, but a long word only needs enough
-	// columns to fill the preview plus one overflow row. Long spaces can be clipped
-	// the same way: native wrapping drops an overflowing space run, not its tail.
-	// Separate leading tabs/whitespace so clipping cannot hide a later CJK token.
-	for (const [token] of text.matchAll(/ +|[^\S \r\n]+|[^ \r\n]+|\r\n|[\r\n]/g)) {
+	let nextWrapLength = contentWidth;
+	// Keep native word boundaries, but a long run only needs enough columns to
+	// fill the preview plus overflow. Separate whitespace even inside words so
+	// clipping cannot hide a later CJK boundary or change a word's whitespace kind.
+	for (const [token] of text.matchAll(/ +|[^\S \r\n]+|\S+|\r\n|[\r\n]/g)) {
 		let end = token.length;
 		let columns = 0;
 		for (const { index, segment } of graphemeSegmenter.segment(token)) {
@@ -361,9 +361,13 @@ function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMes
 			columns += Math.min(contentWidth, visibleWidth(segment));
 		}
 		prefix += token.slice(0, end);
+		// Geometric checkpoints keep total native prefix work linear, not per-token quadratic.
+		if (prefix.length < nextWrapLength) continue;
 		wrapped = wrapTextWithAnsi(prefix, contentWidth);
 		if (wrapped.length > MAX_PEEK_LINES) break;
+		nextWrapLength = prefix.length * 2;
 	}
+	wrapped = wrapTextWithAnsi(prefix, contentWidth);
 	const shown = wrapped.slice(0, MAX_PEEK_LINES);
 	const title = theme.fg("dim", `Peek ${format === "metadata" ? "metadata" : "raw"} ${roleLabel(message.role)} message`);
 	const lines = [title, ...shown.map((line) => `  ${styleRoleText(theme, message.role, line, false)}`)];
