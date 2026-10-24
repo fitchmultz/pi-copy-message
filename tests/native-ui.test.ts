@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { appendFileSync, cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
@@ -33,6 +34,18 @@ const rendered = () => new Promise<void>((resolve) => setTimeout(resolve, 40));
 
 test("native copy commands verify clipboard delivery and preserve branch/picker lifecycle", { timeout: 20_000 }, async (t) => {
   const home = mkdtempSync(join(tmpdir(), "pi-copy-native-"));
+  const retainBase = process.env.COPY_TEST_RETAIN_DIR ?? process.env.PI_COMPAT_EVIDENCE_DIR;
+  const retainDir = retainBase && join(retainBase, basename(home));
+  if (retainDir) mkdirSync(retainDir, { recursive: true });
+  let journalIndex = 0;
+  const retain = (name: string, data: string | Buffer, reason: string) => {
+    if (!retainDir) return;
+    writeFileSync(join(retainDir, name), data, { flag: "wx" });
+    appendFileSync(join(retainDir, "manifest.jsonl"), JSON.stringify({ name, reason, bytes: Buffer.byteLength(data), sha256: createHash("sha256").update(data).digest("hex") }) + "\n");
+  };
+  const retainJournal = (manager: Pick<ExtensionCommandContext["sessionManager"], "getHeader" | "getEntries">, reason: string) => {
+    if (retainDir) retain(`${journalIndex++}-${reason}.jsonl`, [manager.getHeader(), ...manager.getEntries()].map((entry) => JSON.stringify(entry)).join("\n") + "\n", "live native API snapshot");
+  };
   const agentDir = join(home, "agent");
   const bin = join(home, "bin");
   mkdirSync(agentDir); mkdirSync(bin);
@@ -63,11 +76,19 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
     const settingsManager = pi.SettingsManager.inMemory({ theme: "dark", quietStartup: true });
     const modelRuntime = await pi.ModelRuntime.create({ authPath: join(agentDir, "auth.json"), modelsPath: null, allowModelNetwork: false });
     const runtime = await pi.createAgentSessionRuntime(async ({ cwd, sessionManager }) => {
+      retainJournal(sessionManager, "created");
       const services = await pi.createAgentSessionServices({ cwd, agentDir, modelRuntime, settingsManager,
         resourceLoaderOptions: {
           noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true,
           additionalExtensionPaths: [fileURLToPath(new URL("../extensions/copy-message.ts", import.meta.url))],
-          extensionFactories: [(api) => api.registerCommand("qa-context", { handler: async (_args, ctx) => { context = ctx; } })],
+          extensionFactories: [(api) => {
+            api.registerCommand("qa-context", { handler: async (_args, ctx) => { context = ctx; } });
+            if (retainDir) {
+              api.on("session_before_switch", (_event, ctx) => { retainJournal(ctx.sessionManager, "before-switch"); });
+              api.on("session_before_fork", (_event, ctx) => { retainJournal(ctx.sessionManager, "before-fork"); });
+              api.on("session_shutdown", (_event, ctx) => { retainJournal(ctx.sessionManager, "shutdown"); });
+            }
+          }],
         },
       });
       assert.deepEqual(services.resourceLoader.getExtensions().errors, []);
@@ -75,7 +96,7 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
     }, { cwd: home, agentDir, sessionManager: pi.SessionManager.inMemory(home) });
     const terminal = new MemoryTerminal();
     const mode = new pi.InteractiveMode(runtime, { terminal, initialThemeSetting: "dark" });
-    cleanup = async () => { try { mode.stop(); } finally { await runtime.dispose(); } };
+    cleanup = async () => { retainJournal(runtime.session.sessionManager, "before-dispose"); try { mode.stop(); } finally { await runtime.dispose(); } };
     await mode.init();
     await runtime.session.prompt("/qa-context");
     // ponytail: no public viewport observer exists; this fixture uses the host renderer until one does.
@@ -248,6 +269,7 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
       await runtime.session.prompt("/qa-context");
       const m = runtime.session.sessionManager; const journal = join(home, "resume.jsonl");
       writeFileSync(journal, [m.getHeader(), ...m.getBranch()].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+      retain("resume-input.jsonl", readFileSync(journal), "original input before switchSession");
       picker = runtime.session.prompt("/copy-message"); await rendered();
       assert.equal((await context!.switchSession(journal)).cancelled, false);
       await picker;
@@ -322,6 +344,7 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
   } finally {
     try { await cleanup?.(); } finally {
       for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+      if (retainDir) cpSync(home, join(retainDir, "home"), { recursive: true, errorOnExist: true, force: false });
       rmSync(home, { recursive: true, force: true });
     }
   }

@@ -68,6 +68,8 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Preserve native CLI fixture input and live session histories
+        run: git -C automation apply ../extension/tests/fixtures/retain-cli-history.patch
       - name: Use the automation npm version
         run: npm install --global "$(node -p 'require("./automation/package.json").packageManager')"
       - name: Build the exact fork revision
@@ -107,4 +109,4 @@ jobs:
             ${{ runner.temp }}/official
             ${{ runner.temp }}/fork
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 90
