@@ -182,6 +182,27 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
       terminal.resize(100, 30);
     });
 
+    // #40: a bounded preview must not become the registered command's copy payload.
+    await t.test("Tab overflow copies the complete original message including its tail", async () => {
+      const text = "Generated 界🙂 e\u0301 words ".repeat(4096) + "\n\x1b]52;c;not-a-real-clipboard\x07\nCOPY-TAIL-40\n";
+      manager.appendMessage({ role: "user", content: text, timestamp: Date.now() });
+      state({});
+      const picker = runtime.session.prompt("/copy-message");
+      await rendered();
+      terminal.send("\t"); await rendered();
+      assert.ok(screen().some((line) => line.includes("more")));
+      assert.ok(!screen().some((line) => line.includes("COPY-TAIL-40")));
+      terminal.resize(80, 30); await rendered();
+      terminal.send("\x1b[109;3u"); await rendered();
+      assert.ok(screen().some((line) => line.includes("Peek metadata user")));
+      terminal.send("\x1b[109;3u");
+      terminal.send("\r"); await picker;
+      assert.equal(clipboard().text, text);
+      assert.equal(writes().at(-1), text);
+      assert.equal(notes.at(-1)?.type, "info");
+      terminal.resize(100, 30);
+    });
+
     state({});
     for (const tuiMode of ["fullscreen", "regular"] as const) {
       (mode as unknown as { switchTuiMode(mode: string): boolean }).switchTuiMode(tuiMode);
