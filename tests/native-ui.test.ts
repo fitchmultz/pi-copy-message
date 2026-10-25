@@ -6,6 +6,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import type { Terminal } from "@earendil-works/pi-tui";
+import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 
 class MemoryTerminal implements Terminal {
   columns = 100;
@@ -297,6 +298,52 @@ test("native copy commands verify clipboard delivery and preserve branch/picker 
       assert.equal((await context!.newSession()).cancelled, false);
       await copy;
       assert.equal(notes.length, before);
+    });
+    await t.test("native peek wrapping work does not grow with message length", async (t) => {
+      (mode as unknown as { switchTuiMode(mode: string): boolean }).switchTuiMode("fullscreen");
+      const word = "naïve café 🙂 ";
+      // Distinct starts keep native width caching from favoring either render.
+      const small = "1x " + word.repeat(12_000);
+      const large = "10x " + word.repeat(120_000);
+      const session = runtime.session.sessionManager;
+      for (const content of [small, large]) session.appendMessage({ role: "user", content, timestamp: Date.now() });
+      const iterator = new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment("")[Symbol.iterator]();
+      const prototype = Object.getPrototypeOf(iterator) as typeof iterator;
+      const next = prototype.next;
+      let yields = 0;
+      // A recording mock would retain every call; count native iterator yields directly.
+      prototype.next = function (this: typeof iterator) {
+        const result = next.call(this);
+        if (!result.done) yields++;
+        return result;
+      };
+      t.after(() => { prototype.next = next; });
+      const peekRows = () => {
+        const lines = screen().map((line) => stripTerminalSequences(line));
+        const title = lines.findIndex((line) => line.startsWith("Peek raw user message"));
+        assert.ok(title >= 0);
+        return lines.slice(title + 1, title + 18).map((line) => line.trimEnd());
+      };
+      const before = writes().length;
+      const picker = runtime.session.prompt("/copy-message"); await rendered();
+      const work: number[] = [];
+      const peeks: Array<{ text: string; rows: string[] }> = [];
+      for (const [key, text] of [["\t", large], ["\x1b[A", small]] as const) {
+        yields = 0; terminal.send(key); await rendered();
+        work.push(yields);
+        peeks.push({ text, rows: peekRows() });
+      }
+      terminal.send("\x1b"); await picker;
+      assert.equal(writes().length, before);
+      t.diagnostic(`native peek grapheme yields (10x message, 1x message): ${JSON.stringify(work)}`);
+      assert.ok(work[0]! <= work[1]! * 1.25, `${work[0]} yields for a 10x message exceeds ${work[1]} for the 1x message`);
+      for (const { text, rows } of peeks) {
+        assert.equal(rows[16], "  … more wrapped lines");
+        const shown = rows.slice(0, 16).map((row) => row.slice(2));
+        for (const row of shown) assert.ok(visibleWidth(row) <= terminal.columns - 2);
+        const joined = shown.join(" ");
+        assert.equal(joined, text.slice(0, joined.length), "peek shows the message start in order");
+      }
     });
   } finally {
     try { await cleanup?.(); } finally {

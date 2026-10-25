@@ -4,6 +4,8 @@
 
 - Stop enumerating graphemes once a message preview is known to need truncation; preserve preview and copied text.
 
+- Wrap only enough of a long message to fill the `Tab` peek instead of the whole message; very long messages note that more lines remain instead of counting them. Copied text is unchanged.
+
 - Cancel pending copy pickers when the host disposes their UI, including during reload, without interrupting sibling dialog teardown.
 
 ## 4.0.0 - 2026-10-01

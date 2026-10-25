@@ -53,7 +53,7 @@ Mouse wheel moves the selection. Clicking a message copies it and returns keyboa
 ## Search and selection
 
 - Messages appear in chat order, oldest at the top and newest at the bottom. The newest visible message is selected initially.
-- The picker shows at most eight message rows and scrolls through longer lists. The wrapped preview shows up to 16 lines, with a count of any remaining lines.
+- The picker shows at most eight message rows and scrolls through longer lists. The wrapped preview shows up to 16 lines, with a count of any remaining lines. For very long messages it wraps only enough text to fill the preview and notes that more lines remain without counting them.
 - Entry IDs are hidden.
 - Search matches roles and message text case-insensitively. Every whitespace-separated term must match. General search excludes timestamps; use `time:<term>` to search the displayed local time.
 - Search preserves the original selected message and restores it when the search is cleared, if that message is still visible under the current role filters.
