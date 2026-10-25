@@ -6,6 +6,7 @@ import { decodeKittyPrintable, getNativeClipboard, matchesKey, truncateToWidth, 
 
 const MAX_VISIBLE_MESSAGES = 8;
 const MAX_PEEK_LINES = 16;
+const PEEK_WRAP_CHARS = 65_536;
 
 export type CopyFormat = "raw" | "metadata";
 
@@ -343,13 +344,23 @@ function renderMessageLine(
 
 function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMessageTheme, format: CopyFormat): string[] {
 	const contentWidth = Math.max(1, width - 2);
-	const text = safeDisplayText(formatMessageForCopy(message, format));
-	const wrapped = wrapTextWithAnsi(styleRoleText(theme, message.role, text, false), contentWidth);
+	let wrapped: string[];
+	let complete: boolean;
+	// Wrap a growing prefix instead of the whole message. Greedy wrapping means a cut can change only
+	// the prefix's last two wrapped lines, so stop once those lines fall outside the visible window.
+	for (let chars = PEEK_WRAP_CHARS; ; chars *= 2) {
+		complete = chars >= message.text.length;
+		const prefix = complete ? message : { ...message, text: message.text.slice(0, chars) };
+		const text = safeDisplayText(formatMessageForCopy(prefix, format));
+		wrapped = wrapTextWithAnsi(styleRoleText(theme, message.role, text, false), contentWidth);
+		if (complete || wrapped.length >= MAX_PEEK_LINES + 2) break;
+	}
 	const shown = wrapped.slice(0, MAX_PEEK_LINES);
 	const remaining = wrapped.length - shown.length;
 	const title = theme.fg("dim", `Peek ${format === "metadata" ? "metadata" : "raw"} ${roleLabel(message.role)} message`);
 	const lines = [title, ...shown.map((line) => `  ${line}`)];
-	if (remaining > 0) lines.push(theme.fg("dim", `  … ${remaining} more wrapped line${remaining === 1 ? "" : "s"}`));
+	if (!complete) lines.push(theme.fg("dim", "  … more wrapped lines"));
+	else if (remaining > 0) lines.push(theme.fg("dim", `  … ${remaining} more wrapped line${remaining === 1 ? "" : "s"}`));
 	return lines;
 }
 
