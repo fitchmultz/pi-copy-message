@@ -346,13 +346,15 @@ function renderPeekLines(message: CopyableMessage, width: number, theme: CopyMes
 	const contentWidth = Math.max(1, width - 2);
 	let wrapped: string[];
 	let complete: boolean;
-	// Wrap a growing prefix instead of the whole message. Greedy wrapping means a cut can change only
-	// the prefix's last two wrapped lines, so stop once those lines fall outside the visible window.
+	// Wrap a growing prefix instead of the whole message. A cut prefix ends on visible text: styling
+	// codes attached to a trailing whitespace run would make the wrapper break it into blank lines that
+	// a full wrap drops. Greedy wrapping then changes only the prefix's last two wrapped lines, so stop
+	// once those lines fall outside the visible window.
 	for (let chars = PEEK_WRAP_CHARS; ; chars *= 2) {
 		complete = chars >= message.text.length;
 		const prefix = complete ? message : { ...message, text: message.text.slice(0, chars) };
 		const text = safeDisplayText(formatMessageForCopy(prefix, format));
-		wrapped = wrapTextWithAnsi(styleRoleText(theme, message.role, text, false), contentWidth);
+		wrapped = wrapTextWithAnsi(styleRoleText(theme, message.role, complete ? text : text.trimEnd(), false), contentWidth);
 		if (complete || wrapped.length >= MAX_PEEK_LINES + 2) break;
 	}
 	const shown = wrapped.slice(0, MAX_PEEK_LINES);

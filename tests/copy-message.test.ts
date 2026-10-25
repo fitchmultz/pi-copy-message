@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { type KeyId, KeybindingsManager, setKittyProtocolActive, TUI_KEYBINDINGS, visibleWidth } from "@earendil-works/pi-tui";
+import { type KeyId, KeybindingsManager, setKittyProtocolActive, stripTerminalSequences, TUI_KEYBINDINGS, visibleWidth } from "@earendil-works/pi-tui";
 
 import extension, {
 	collectCopyableMessages,
@@ -396,6 +396,16 @@ test("picker filters, search, metadata, and peek", () => {
 	assert.equal(state.peek, true);
 	assert.ok(state.render(60, plainTheme).some((line) => line.includes("Peek metadata assistant message")));
 	assert.equal(state.handleInput("\r"), "copy");
+});
+
+test("peek of a long message ending its wrapped prefix in whitespace matches the full message", () => {
+	const styledTheme = { fg: (_color: string, text: string) => `\x1b[33m${text}\x1b[39m`, bold: (text: string) => text } as never;
+	const state = new CopyMessagePickerState([copyableMessage("u0", "user", `words ${" ".repeat(66_000)}tail end`, 0)]);
+	state.handleInput("\t");
+	const lines = state.render(100, styledTheme).map((line) => stripTerminalSequences(line).trimEnd());
+	const title = lines.findIndex((line) => line.startsWith("Peek raw user message"));
+	assert.deepEqual(lines.slice(title + 1, title + 3), ["  words", "  tail end"]);
+	assert.match(lines[title + 3] ?? "", /^\(1\/1\)/);
 });
 
 test("custom message filter", () => {
