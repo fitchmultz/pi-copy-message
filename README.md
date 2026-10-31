@@ -6,7 +6,7 @@ Copy message text from a [Pi](https://github.com/earendil-works/pi-mono) session
 
 ## Install and start
 
-This extension requires Pi 1.0.0 or later and Node.js 24.15.0 or later.
+This extension requires Pi and Node.js. See the [development guide](https://github.com/fitchmultz/pi-copy-message/blob/main/docs/development.md) for version requirements.
 
 Run this command:
 
