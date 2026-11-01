@@ -10,13 +10,29 @@ Pi can also install this package directly from GitHub:
 pi install https://github.com/fitchmultz/pi-copy-message
 ```
 
+## Quality toolchain
+
+The lint and formatter configuration comes from the adopted standard copy in
+[`docs/quality/strict-oxlint-oxfmt-5.1.2.md`](quality/strict-oxlint-oxfmt-5.1.2.md); the adoption record
+and the single recorded quality exception are in [`docs/quality/adoption.md`](quality/adoption.md) and
+[`docs/quality/quality-exceptions.md`](quality/quality-exceptions.md). Keep the two configuration files
+equal to the standard's blocks plus what those records authorize.
+
+```bash
+npm run lint          # checker with the repository configuration
+npm run lint:agent    # same rules, agent-readable output
+npm run format        # formatter, expected to be idempotent
+npm run policy:check  # configuration, allowance, tool floors, coverage, directives
+npm run quality:probes # qualification harness: each diagnostic input must behave as recorded
+```
+
 ## Local checks
 
 Requires Node.js `>=24.15.0`; `.nvmrc` pins Node 24.21.0. The npm version is declared in `package.json`.
 
 ```bash
 npm ci
-npm run check # node --test + tsc --noEmit + pack dry-run
+npm run check # every gate, run independently and aggregated
 ```
 
 To load the source directly from a checkout:
@@ -69,3 +85,30 @@ Then qualify the packed latest maintained fork with `--host fork --target /path/
 Once configured and enabled, merges to `main` trigger automatic versioning and releases to npm and GitHub after the compatibility checks and candidate-tarball qualification pass. Follow the [shared release procedure](https://github.com/fitchmultz/.github#automatic-npm-releases) for setup, retries, and recovery.
 
 Set repository variable `NPM_RELEASE_ENABLED` to anything other than `true` to stop new release plans; cancel pending runs separately when needed. Workflow validation is not evidence of a completed real OIDC publication.
+
+## Lint, format, and policy conformance
+
+The repository follows the Strict Oxlint and Oxfmt Engineering Policy (release `strict-quality-4.5`).
+
+| Tool                        | Floor           | Role                                                                            |
+| --------------------------- | --------------- | ------------------------------------------------------------------------------- |
+| `oxlint`                    | 1.90.0          | Lints every maintained source file with type-aware checking enabled             |
+| `oxlint-tsgolint`           | 7.0.2005        | Supplies type information to the checker                                        |
+| `oxfmt`                     | 0.75.0          | Formats every maintained source file; `npm run format:check` must stay clean    |
+| `oxc-parser`                | 0.156.0         | Powers the policy verifier                                                      |
+| TypeScript compiler options | `tsconfig.json` | The checker reads the project's compiler options; the verifier reports coverage |
+
+`.oxlintrc.json` is the recorded policy baseline. Changing a rule, option, override profile, or the
+test-profile registration mapping is a policy decision; `npm run policy:check` fails when the
+effective configuration drifts from the recorded digest, when a tool drops below its floor, when a
+maintained file falls outside the compiler project, or when any suppression directive appears. The
+repository keeps zero lint-disable directives and zero TypeScript suppression comments.
+
+`tests/probes/` holds diagnostic inputs: files whose purpose is to produce findings. The lint gate
+skips that directory, and `npm run quality:probes` lints it with the repository configuration and
+asserts the exact expected diagnostic count for each input, that every other maintained source is
+clean, and that the checker exits nonzero. Type-aware checking needs the checker binary for the host
+platform; where it is unavailable the harness reports the skip and CI covers the assertion.
+
+`npm run check` runs policy conformance, lint, format check, typecheck, tests, and the pack check;
+that is the gate before pushing.

@@ -5,7 +5,11 @@ import { registerHooks } from "node:module";
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (/[/\\]native[/\\].*-platform(?:-x11)?\.node$/.test(specifier)) {
-      return { url: new URL("./clipboard-helper.cjs", import.meta.url).href, format: "commonjs", shortCircuit: true };
+      return {
+        url: new URL("./clipboard-helper.cjs", import.meta.url).href,
+        format: "commonjs",
+        shortCircuit: true,
+      };
     }
     return nextResolve(specifier, context);
   },

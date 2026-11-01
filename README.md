@@ -30,23 +30,23 @@ Messages appear from oldest to newest. The picker selects the newest visible mes
 
 User, assistant, and visible custom messages appear by default. Tool and bash messages stay hidden.
 
-| Key | Action |
-|---|---|
-| Ctrl+T | Show or hide tool and bash messages |
-| Ctrl+U / Ctrl+A / Alt+C | Show or hide user, assistant, or custom messages |
-| Tab | Preview the selected message |
-| Alt+M | Switch between raw text and text with role/time metadata |
-| Esc / Ctrl+C | Cancel |
+| Key                     | Action                                                   |
+| ----------------------- | -------------------------------------------------------- |
+| Ctrl+T                  | Show or hide tool and bash messages                      |
+| Ctrl+U / Ctrl+A / Alt+C | Show or hide user, assistant, or custom messages         |
+| Tab                     | Preview the selected message                             |
+| Alt+M                   | Switch between raw text and text with role/time metadata |
+| Esc / Ctrl+C            | Cancel                                                   |
 
 The picker uses your Pi selection bindings. Its key hints show those bindings.
 
 ## Direct copies
 
-| Command | What it copies |
-|---|---|
-| `/copy-user` | Your most recent message with text |
-| `/copy-message latest` | The latest default-visible message in Pi's active context |
-| `/copy-message 3` | The third default-visible message, counted oldest to newest |
+| Command                            | What it copies                                                  |
+| ---------------------------------- | --------------------------------------------------------------- |
+| `/copy-user`                       | Your most recent message with text                              |
+| `/copy-message latest`             | The latest default-visible message in Pi's active context       |
+| `/copy-message 3`                  | The third default-visible message, counted oldest to newest     |
 | `/copy-message latest --with-meta` | The latest message with its role and local time, when available |
 
 `latest` follows Pi's active context, including context edits, omissions, and compaction. The picker, numbered copies, and `/copy-user` use stored messages on the current branch, including history before compaction.

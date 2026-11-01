@@ -34,20 +34,33 @@
   "scripts": {
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "check": "npm test && npm run typecheck && npm pack --dry-run",
-    "check:compat": "npm run check",
+    "lint": "oxlint --deny-warnings --ignore-pattern 'tests/probes/**' .",
+    "lint:agent": "oxlint --deny-warnings --format=agent --ignore-pattern 'tests/probes/**' .",
+    "lint:fix": "oxlint --fix --ignore-pattern 'tests/probes/**' .",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "policy:check": "node scripts/check-policy.ts",
+    "quality:probes": "node --test tests/quality*.test.ts",
+    "pack:check": "npm pack --dry-run",
+    "check": "node scripts/run-gates.ts policy:check format:check lint typecheck test pack:check",
+    "check:compat": "node scripts/run-gates.ts policy:check format:check lint typecheck test",
     "prepublishOnly": "npm run check"
   },
   "files": [
     "extensions",
+    "src",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "1.0.0",
-    "@earendil-works/pi-tui": "1.0.0",
-    "@types/node": "24.19.1",
+    "@earendil-works/pi-coding-agent": "1.4.0",
+    "@earendil-works/pi-tui": "1.4.0",
+    "@types/node": "24.19.2",
+    "oxc-parser": "0.156.0",
+    "oxfmt": "0.75.0",
+    "oxlint": "1.90.0",
+    "oxlint-tsgolint": "7.0.2005",
     "typescript": "7.0.2"
   },
   "pi": {
