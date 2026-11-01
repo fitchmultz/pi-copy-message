@@ -10,13 +10,29 @@ Pi can also install this package directly from GitHub:
 pi install https://github.com/fitchmultz/pi-copy-message
 ```
 
+## Quality toolchain
+
+The lint and formatter configuration comes from the adopted standard copy in
+[`docs/quality/strict-oxlint-oxfmt-5.1.1.md`](quality/strict-oxlint-oxfmt-5.1.1.md); the adoption record
+and the single recorded quality exception are in [`docs/quality/adoption.md`](quality/adoption.md) and
+[`docs/quality/quality-exceptions.md`](quality/quality-exceptions.md). Keep the two configuration files
+equal to the standard's blocks plus what those records authorize.
+
+```bash
+npm run lint          # checker with the repository configuration
+npm run lint:agent    # same rules, agent-readable output
+npm run format        # formatter, expected to be idempotent
+npm run policy:check  # configuration, allowance, tool floors, coverage, directives
+npm run quality:probes # qualification harness: each diagnostic input must behave as recorded
+```
+
 ## Local checks
 
 Requires Node.js `>=24.15.0`; `.nvmrc` pins Node 24.21.0. The npm version is declared in `package.json`.
 
 ```bash
 npm ci
-npm run check # node --test + tsc --noEmit + pack dry-run
+npm run check # every gate, run independently and aggregated
 ```
 
 To load the source directly from a checkout:
