@@ -34,9 +34,9 @@
   "scripts": {
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint --deny-warnings .",
-    "lint:agent": "oxlint --deny-warnings --format=agent .",
-    "lint:fix": "oxlint --fix .",
+    "lint": "oxlint --deny-warnings --ignore-pattern 'tests/probes/**' .",
+    "lint:agent": "oxlint --deny-warnings --format=agent --ignore-pattern 'tests/probes/**' .",
+    "lint:fix": "oxlint --fix --ignore-pattern 'tests/probes/**' .",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "policy:check": "node scripts/check-policy.ts",
@@ -48,6 +48,7 @@
   },
   "files": [
     "extensions",
+    "src",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"

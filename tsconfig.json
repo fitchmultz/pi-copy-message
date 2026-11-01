@@ -23,6 +23,7 @@
   },
   "include": [
     "extensions/**/*.ts",
+    "src/**/*.ts",
     "tests/**/*.ts",
     "tests/**/*.js",
     "tests/**/*.cjs",
