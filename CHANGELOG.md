@@ -7,6 +7,36 @@
 - Split the extension entry module into focused source modules (`display-text`, `session-content`, `picker-view`, `picker-state`, `arguments`, `clipboard`) to satisfy the policy's structural limits; registered behavior is unchanged.
 - Test files register `node:test` through the local names the checker's test profile maps.
 
+## 4.0.4 - 2026-11-01
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- Use direct Flash for automatic release remediation (#50) ([01e4fd0](https://github.com/fitchmultz/pi-copy-message/commit/01e4fd005552a09f95f90355efa8559ba0e86791))
+
+### What's Changed
+
+- Use direct Flash for necessary release remediation by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/50
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.3...v4.0.4
+
+## 4.0.3 - 2026-11-01
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- chore(deps-dev): bump brace-expansion from 5.0.9 to 5.0.12 (#45) ([fa3e6e4](https://github.com/fitchmultz/pi-copy-message/commit/fa3e6e4c7527017e6d2189d887245ad70655e764))
+
+### What's Changed
+
+- chore(deps-dev): bump brace-expansion from 5.0.9 to 5.0.12 by @dependabot[bot] in https://github.com/fitchmultz/pi-copy-message/pull/45
+
+### New Contributors
+
+- @dependabot[bot] made their first contribution in https://github.com/fitchmultz/pi-copy-message/pull/45
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.2...v4.0.3
+
 ## 4.0.2 - 2026-11-01
 
 <!-- npm-release:unreleased:start -->
