@@ -8,11 +8,14 @@ import { resolve } from "node:path";
 
 const repo = resolve(import.meta.dirname, "..");
 
-/** Gates have no build dependency on each other: every one runs, and every failure counts. */
-const gates = [
-  ["policy:check", "format:check", "lint", "typecheck", "test", "pack:check"],
-  process.argv.slice(2),
-].flat(1);
+/**
+ * Gates have no build dependency on each other: every one runs, and every failure counts. Arguments
+ * select exactly those gates; with none, the default set runs. Selecting a subset is what lets a
+ * control prove independence without pulling the test suite back into itself.
+ */
+const defaultGates = ["policy:check", "format:check", "lint", "typecheck", "test", "pack:check"];
+const requested = process.argv.slice(2);
+const gates = requested.length > 0 ? requested : defaultGates;
 
 if (gates.length === 0) {
   console.error("no gates to run");
