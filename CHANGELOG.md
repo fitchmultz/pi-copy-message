@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 4.0.4 - 2026-11-01
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- Use direct Flash for automatic release remediation (#50) ([01e4fd0](https://github.com/fitchmultz/pi-copy-message/commit/01e4fd005552a09f95f90355efa8559ba0e86791))
+
+### What's Changed
+* Use direct Flash for necessary release remediation by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/50
+
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.3...v4.0.4
+
 ## 4.0.3 - 2026-11-01
 
 <!-- npm-release:unreleased:start -->
