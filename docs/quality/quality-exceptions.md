@@ -1,6 +1,6 @@
 # Quality exceptions
 
-This repository adopts [Strict Oxlint and Oxfmt Engineering Standard v5.1.1](strict-oxlint-oxfmt-5.1.1.md).
+This repository adopts [Strict Oxlint and Oxfmt Engineering Standard v5.1.2](strict-oxlint-oxfmt-5.1.2.md).
 Recorded exceptions are listed below using the standard's Appendix B template. Maintained sources carry
 no suppression directives; `npm run policy:check` fails if one appears.
 

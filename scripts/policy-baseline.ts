@@ -1,13 +1,13 @@
 /**
  * The recorded policy baseline for `npm run policy:check`. The normative configuration lives in the
- * adopted standard copy (`docs/quality/strict-oxlint-oxfmt-5.1.1.md`); this file records what the
+ * adopted standard copy (`docs/quality/strict-oxlint-oxfmt-5.1.2.md`); this file records what the
  * repository itself decides: the recorded allowance, the source-profile mapping, and the tool
  * versions the configuration was qualified against. Evidence for the allowance lives in
  * `docs/quality/quality-exceptions.md` and is exercised by `npm run quality:probes`.
  */
 export const sourceProfiles = {
-  standard: "Strict Oxlint and Oxfmt Engineering Standard v5.1.1",
-  /** Versions the reference configuration has been checked with (section 5.1). */
+  standard: "Strict Oxlint and Oxfmt Engineering Standard v5.1.2",
+  /** Installed toolchain, verified current against the public registry on 2026-11-01 (section 5.1). */
   toolFloors: {
     oxlint: "1.90.0",
     "oxlint-tsgolint": "7.0.2005",
@@ -31,7 +31,7 @@ export const sourceProfiles = {
   profiles: [
     {
       profile: "production",
-      globs: ["src/**/*.ts", "extensions/**/*.ts", "scripts/**/*.ts"],
+      globs: ["src/**/*.ts", "extensions/**/*.ts", "scripts/**/*.ts", "tools/**/*.ts"],
     },
     {
       profile: "tests",

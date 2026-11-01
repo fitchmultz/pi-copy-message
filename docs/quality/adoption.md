@@ -1,14 +1,14 @@
 # Quality standard adoption record
 
-This repository follows [Strict Oxlint and Oxfmt Engineering Standard v5.1.1](strict-oxlint-oxfmt-5.1.1.md).
+This repository follows [Strict Oxlint and Oxfmt Engineering Standard v5.1.2](strict-oxlint-oxfmt-5.1.2.md).
 The record below states what is installed, what runs, and what the current state is. Decisions that
 depart from the standard's own values are recorded in [quality-exceptions.md](quality-exceptions.md).
 
 ## Repository and version
 
 - Repository: `fitchmultz/pi-copy-message` (a Pi extension package, published to npm).
-- Adopted standard: Strict Oxlint and Oxfmt Engineering Standard v5.1.1. The adopted copy in this
-  repository is `docs/quality/strict-oxlint-oxfmt-5.1.1.md`; it is the version the tools and checks here
+- Adopted standard: Strict Oxlint and Oxfmt Engineering Standard v5.1.2. The adopted copy in this
+  repository is `docs/quality/strict-oxlint-oxfmt-5.1.2.md`; it is the version the tools and checks here
   were measured against.
 
 ## Runtimes and package manager

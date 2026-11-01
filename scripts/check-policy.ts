@@ -1,5 +1,5 @@
 /**
- * Policy conformance verifier for the adopted standard (`docs/quality/strict-oxlint-oxfmt-5.1.1.md`).
+ * Policy conformance verifier for the adopted standard (`docs/quality/strict-oxlint-oxfmt-5.1.2.md`).
  * It compares the effective lint and formatter configuration against the standard's own normative
  * blocks, permits only the recorded quality allowance, requires compiler membership for every
  * maintained source, and fails on any suppression directive.
@@ -12,7 +12,16 @@ import { parseSync } from "oxc-parser";
 import { qualityExceptions, sourceProfiles } from "./policy-baseline.ts";
 
 const repo = resolve(import.meta.dirname, "..");
-const guidePath = join(repo, "docs/quality/strict-oxlint-oxfmt-5.1.1.md");
+const cliArgs = process.argv.slice(2);
+const lintConfigPath = cliValue("--lint-config") ?? ".oxlintrc.json";
+const formatConfigPath = cliValue("--format-config") ?? ".oxfmtrc.json";
+
+/** Optional override so the qualification harness can verify drift detection against a mutated copy. */
+function cliValue(flag: string): string | undefined {
+  const index = cliArgs.indexOf(flag);
+  return index === -1 ? undefined : cliArgs[index + 1];
+}
+const guidePath = join(repo, "docs/quality/strict-oxlint-oxfmt-5.1.2.md");
 const problems: string[] = [];
 const report: string[] = [];
 
@@ -35,14 +44,14 @@ if (expectedLint !== undefined) {
     override.rules[floatingRule] = exception.options;
   }
 }
-if (!same(readJson(".oxlintrc.json"), expectedLint)) {
+if (!same(readJson(lintConfigPath), expectedLint)) {
   problems.push(".oxlintrc.json differs from the standard's baseline plus the recorded allowance");
 }
-if (guideFormat !== undefined && !same(readJson(".oxfmtrc.json"), guideFormat)) {
+if (guideFormat !== undefined && !same(readJson(formatConfigPath), guideFormat)) {
   problems.push(".oxfmtrc.json differs from the standard's formatter block");
 }
 report.push(
-  `config digests: lint ${digest(readJson(".oxlintrc.json"))} format ${digest(readJson(".oxfmtrc.json"))}`,
+  `config digests: lint ${digest(readJson(lintConfigPath))} format ${digest(readJson(formatConfigPath))}`,
 );
 report.push(`recorded quality allowance: ${exception.id}`);
 

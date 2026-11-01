@@ -1,6 +1,6 @@
 # Strict Oxlint and Oxfmt Engineering Standard
 
-**Version 5.1.1 · 1 November 2026**
+**Version 5.1.2 · 1 November 2026**
 
 This standard defines linting, formatting, typechecking, and verification requirements for JavaScript and TypeScript projects. It applies to engineers, reviewers, and coding agents.
 
@@ -233,17 +233,13 @@ Native runtime type stripping is not typechecking and does not implement arbitra
 
 ### 5.1 Published tools and compatibility
 
-Use compatible published stock Oxlint, `oxlint-tsgolint`, and Oxfmt packages, resolved reproducibly by the repository's package manager and lockfile. Keep the canonical compiler/framework checker as a separate required gate.
+Use the latest stable published releases of Oxlint, `oxlint-tsgolint`, Oxfmt, and any additional quality-tooling packages introduced by this standard. Resolve current releases when adopting or upgrading the toolchain. This standard prescribes no package version numbers or upgrade waiting period. Keep the canonical compiler/framework checker as a separate required gate.
 
-The reference configuration has been checked with:
+Keep dependencies current through the repository's update workflow. Commit the updated dependency declarations and lockfile with each upgrade so local development, agents, CI, and supported editor integrations use the same resolved dependency tree. The lockfile records the current installation for reproducibility; it does not restrict how frequently dependencies may be updated. Automated and frequent upgrades are permitted.
 
-| Component         | Version  |
-| ----------------- | -------- |
-| Oxlint            | 1.90.0   |
-| `oxlint-tsgolint` | 7.0.2005 |
-| Oxfmt             | 0.75.0   |
+Verify rule/options support, meaningful valid and invalid cases, project membership, and canonical compiler compatibility before activating an upgrade. If the latest release fails required checks, report the upgrade as blocked and retain the currently qualified toolchain while resolving the problem. Do not conceal failures or weaken checks merely to complete an upgrade.
 
-These versions establish configuration compatibility, not universal project acceptance. Other compatible published versions are permitted after qualification. Verify rule/options support, meaningful valid and invalid cases, project membership, and canonical compiler compatibility on the installed toolchain. Use the same resolved implementation across local, agent, CI, and supported editor paths.
+When releases rename rules/options or change configuration syntax, use documented equivalents and verify that the required protection is preserved. Any relaxation still requires Section 2 evidence. Routine package upgrades and equivalent configuration updates do not require a new release of this standard.
 
 Do not maintain a custom semantic/Rust linter fork or hand-edited installation to implement this standard. Handle demonstrated limitations through sound implementation, a qualified published upgrade, or a quality exception. Existing repository-specific rules may remain when they enforce useful compatible contracts. Verify those contracts before replacing or removing custom checks.
 
@@ -977,5 +973,5 @@ The following primary references describe tool behavior. This standard defines t
 - [Oxlint ignore comments](https://oxc.rs/docs/guide/usage/linter/ignore-comments.html).
 - [Floating-Promise checks](https://oxc.rs/docs/guide/usage/linter/rules/typescript/no-floating-promises), [readonly parameter types](https://oxc.rs/docs/guide/usage/linter/rules/typescript/prefer-readonly-parameter-types), and [strict void returns](https://oxc.rs/docs/guide/usage/linter/rules/typescript/strict-void-return).
 - [Promise rejection options](https://oxc.rs/docs/guide/usage/linter/rules/typescript/prefer-promise-reject-errors).
-- [Node test runner](https://nodejs.org/docs/latest-v24.x/api/test.html).
+- [Node test runner](https://nodejs.org/api/test.html).
 - [Oxfmt configuration](https://oxc.rs/docs/guide/usage/formatter/config-file-reference.html), [CLI](https://oxc.rs/docs/guide/usage/formatter/cli.html), and [language support](https://oxc.rs/docs/guide/usage/formatter/language-support).
