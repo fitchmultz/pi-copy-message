@@ -3,6 +3,6 @@ function it(_name: string, fn: () => void): Promise<void> {
 	return Promise.resolve();
 }
 
-it("same-named local function must be flagged", () => {
-	// Probe: bare-name entries are prohibited.
+it("same-named local function is reported", () => {
+	// Bare-name entries are prohibited.
 });

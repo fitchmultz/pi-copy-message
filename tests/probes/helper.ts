@@ -9,5 +9,5 @@ export function test(_name: string, fn: () => void): Promise<void> {
 }
 
 export async function probeHelper(): Promise<void> {
-	// Probe: an ordinary asynchronous call.
+	// An ordinary asynchronous call.
 }
