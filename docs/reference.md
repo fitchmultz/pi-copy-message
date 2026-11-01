@@ -26,25 +26,25 @@ Command argument completion offers the selector aliases and metadata flags.
 
 ## Keyboard controls
 
-| Key | Action |
-|---|---|
-| Configured `tui.select.up` (default: `↑`) | Move to older visible message |
-| Configured `tui.select.down` (default: `↓`) | Move to newer visible message |
-| Configured `tui.select.pageUp` / `tui.select.pageDown` (default: `PageUp` / `PageDown`) | Move by one visible page in regular mode |
-| `Ctrl+PageUp` / `Ctrl+PageDown` | Move by one visible page in fullscreen mode |
-| `Home` / `End` | Jump to oldest/newest visible message in regular mode |
-| `Ctrl+Home` / `Ctrl+End` | Jump to oldest/newest visible message in fullscreen mode |
-| Type or paste text | Filter visible messages; pasted line breaks and tabs become spaces |
-| `time:<term>` | Search displayed timestamps |
-| `Backspace` | Delete one search character (a whole grapheme) |
-| `Ctrl+U` | Toggle user messages |
-| `Ctrl+A` | Toggle assistant messages |
-| `Ctrl+T` | Toggle tool/bash messages |
-| `Alt+C` | Toggle custom messages |
-| `Tab` | Toggle a wrapped preview of the selected message |
-| `Alt+M` | Toggle raw vs metadata copy format |
-| Configured `tui.select.confirm` (default: `Enter`) | Copy selected message text |
-| Configured `tui.select.cancel` (default: `Esc`/`Ctrl+C`) | Cancel |
+| Key                                                                                     | Action                                                             |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Configured `tui.select.up` (default: `↑`)                                               | Move to older visible message                                      |
+| Configured `tui.select.down` (default: `↓`)                                             | Move to newer visible message                                      |
+| Configured `tui.select.pageUp` / `tui.select.pageDown` (default: `PageUp` / `PageDown`) | Move by one visible page in regular mode                           |
+| `Ctrl+PageUp` / `Ctrl+PageDown`                                                         | Move by one visible page in fullscreen mode                        |
+| `Home` / `End`                                                                          | Jump to oldest/newest visible message in regular mode              |
+| `Ctrl+Home` / `Ctrl+End`                                                                | Jump to oldest/newest visible message in fullscreen mode           |
+| Type or paste text                                                                      | Filter visible messages; pasted line breaks and tabs become spaces |
+| `time:<term>`                                                                           | Search displayed timestamps                                        |
+| `Backspace`                                                                             | Delete one search character (a whole grapheme)                     |
+| `Ctrl+U`                                                                                | Toggle user messages                                               |
+| `Ctrl+A`                                                                                | Toggle assistant messages                                          |
+| `Ctrl+T`                                                                                | Toggle tool/bash messages                                          |
+| `Alt+C`                                                                                 | Toggle custom messages                                             |
+| `Tab`                                                                                   | Toggle a wrapped preview of the selected message                   |
+| `Alt+M`                                                                                 | Toggle raw vs metadata copy format                                 |
+| Configured `tui.select.confirm` (default: `Enter`)                                      | Copy selected message text                                         |
+| Configured `tui.select.cancel` (default: `Esc`/`Ctrl+C`)                                | Cancel                                                             |
 
 Selection key hints show the active Pi bindings. Configured selection actions take precedence if they collide with filter, preview, or format shortcuts; conflicting shortcut hints are hidden. Filter labels use the active Pi theme.
 

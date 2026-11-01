@@ -10,8 +10,8 @@
 - Automate reviewed npm patch releases (#46) ([4fd1e2f](https://github.com/fitchmultz/pi-copy-message/commit/4fd1e2f468eed1f84a929602dd9553aa2515ca3b))
 
 ### What's Changed
-* Automate reviewed npm patch releases by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/46
 
+- Automate reviewed npm patch releases by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/46
 
 **Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.1...v4.0.2
 
