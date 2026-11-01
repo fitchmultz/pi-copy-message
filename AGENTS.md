@@ -13,4 +13,3 @@
 - This repository follows the Strict Oxlint and Oxfmt Engineering Policy (release `strict-quality-4.5`). `.oxlintrc.json` and `.oxfmtrc.json` carry the policy configuration, and `npm run policy:check` fails when the effective configuration, tool floors, project coverage, or the zero-suppression budget drifts from the recorded baseline. Rule and option changes are policy decisions.
 - `npm run check` is the pre-push gate: policy conformance, lint, format check, typecheck, tests, and pack check. Findings are fixed in code; the repository keeps zero lint-disable directives and zero TypeScript suppression comments.
 - `tests/probes/` holds diagnostic inputs whose purpose is to produce findings; the lint gate skips that directory and `npm run quality:probes` asserts each input's expected diagnostics.
-
