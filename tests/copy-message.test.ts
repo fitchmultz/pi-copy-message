@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { test } from "node:test";
+import { test as nodeTest } from "node:test";
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
@@ -12,22 +12,26 @@ import {
 	visibleWidth,
 } from "@earendil-works/pi-tui";
 
-import extension, {
+import extension from "../extensions/copy-message.ts";
+import type { CopyMessageTheme, PickerKeybindings } from "../src/picker-view.ts";
+import {
 	collectCopyableMessages,
-	CopyMessagePickerState,
 	defaultVisibleMessages,
-	type CopyableMessage,
 	getMostRecentUserMessage,
 	latestDefaultMessage,
 	messageByDefaultNumber,
-} from "../extensions/copy-message.ts";
+	type CopyableMessage,
+} from "../src/session-content.ts";
+import { CopyMessagePickerState } from "../src/picker-state.ts";
 
 type CommandOptions = Parameters<ExtensionAPI["registerCommand"]>[1];
 
 const captureRegisteredCommands = () => {
 	const commands = new Map<string, CommandOptions>();
 	const pi: Pick<ExtensionAPI, "registerCommand" | "on"> = {
-		on: () => () => {},
+		on: () => () => {
+			// The harness records registrations only; nothing subscribes to events here.
+		},
 		registerCommand: (name, options) => {
 			commands.set(name, options);
 		},
@@ -55,12 +59,12 @@ const press = (state: CopyMessagePickerState, keys: string) => {
 	}
 };
 
-const plainTheme = {
-	fg: (_color: string, text: string) => text,
-	bold: (text: string) => text,
-} as never;
+const plainTheme: CopyMessageTheme = {
+	fg: (_color, text) => text,
+	bold: (text) => text,
+};
 
-test("previews strip terminal control sequences", () => {
+nodeTest("previews strip terminal control sequences", () => {
 	const clipboardWrite = `\x1b]52;c;${Buffer.from("injected").toString("base64")}\x07`;
 	const text = `Before ${clipboardWrite}after`;
 	const state = new CopyMessagePickerState([copyableMessage("a0", "assistant", text, 0)]);
@@ -82,7 +86,7 @@ test("previews strip terminal control sequences", () => {
 	assert.ok(roleState.render(120, plainTheme).every((line) => !/[\x1b\r\n\t]/.test(line)));
 });
 
-test("picker previews retain full-split output at grapheme boundaries", () => {
+nodeTest("picker previews retain full-split output at grapheme boundaries", () => {
 	const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 	const patterns = [
 		"a",
@@ -120,14 +124,16 @@ test("picker previews retain full-split output at grapheme boundaries", () => {
 			const template = new CopyMessagePickerState([{ ...message, text: "preview sentinel" }]);
 			const wide = template
 				.render(1000, plainTheme)
-				.map((line) => line.replace("  preview sentinel", preview ? "  " + preview : ""));
+				.map((line) =>
+					line.replace("  preview sentinel", preview === "" ? "" : "  " + preview),
+				);
 			assert.deepEqual(state.render(1000, plainTheme), wide);
 			assert.equal(state.selectedCopyText(), text);
 		}
 	}
 });
 
-test("bracketed paste extends search without submitting", () => {
+nodeTest("bracketed paste extends search without submitting", () => {
 	const messages = [
 		copyableMessage("a0", "assistant", "invoice 123", 0),
 		copyableMessage("a1", "assistant", "unrelated newest answer", 1),
@@ -151,7 +157,7 @@ test("bracketed paste extends search without submitting", () => {
 });
 
 const registrations = captureRegisteredCommands();
-test("backspace deletes whole graphemes and restores selection", () => {
+nodeTest("backspace deletes whole graphemes and restores selection", () => {
 	// Backspace removes a whole visible character and restores the unfiltered selection.
 	const messages = [
 		copyableMessage("a0", "assistant", "😀 👨‍👩‍👧‍👦 e\u0301", 0),
@@ -168,9 +174,11 @@ test("backspace deletes whole graphemes and restores selection", () => {
 	}
 });
 
-test("argument completions", () => {
-	const messageCompletions = registrations.get("copy-message")!.getArgumentCompletions!;
-	const userCompletions = registrations.get("copy-user")!.getArgumentCompletions!;
+nodeTest("argument completions", () => {
+	const messageCompletions = registrations.get("copy-message")?.getArgumentCompletions;
+	const userCompletions = registrations.get("copy-user")?.getArgumentCompletions;
+	assert.ok(messageCompletions !== undefined);
+	assert.ok(userCompletions !== undefined);
 	assert.deepEqual(messageCompletions(""), [
 		{ value: "latest", label: "latest" },
 		{ value: "last", label: "last" },
@@ -280,7 +288,7 @@ const mixedBranch = {
 	},
 };
 
-test("collects copyable entries from a mixed branch", () => {
+nodeTest("collects copyable entries from a mixed branch", () => {
 	assert.deepEqual(collectCopyableMessages(mixedBranch), [
 		{ id: "u0", role: "user", timestamp: "2026-06-07T00:00:00.000Z", text: "raw user text" },
 		{
@@ -316,7 +324,7 @@ test("collects copyable entries from a mixed branch", () => {
 	]);
 });
 
-test("most recent user message joins adjacent text blocks", () => {
+nodeTest("most recent user message joins adjacent text blocks", () => {
 	const content = [
 		{ type: "text", text: 'print("sa' },
 		{ type: "text", text: 'fe")' },
@@ -332,7 +340,7 @@ test("most recent user message joins adjacent text blocks", () => {
 	});
 });
 
-test("pending checkpoints collapse into the final response", () => {
+nodeTest("pending checkpoints collapse into the final response", () => {
 	const messages = collectCopyableMessages({
 		sessionManager: {
 			getBranch: () => [
@@ -380,7 +388,7 @@ test("pending checkpoints collapse into the final response", () => {
 	assert.equal(messageByDefaultNumber(messages, 2)?.text, "Final answer");
 });
 
-test("the longest pending checkpoint wins", () => {
+nodeTest("the longest pending checkpoint wins", () => {
 	const messages = collectCopyableMessages({
 		sessionManager: {
 			getBranch: () => [
@@ -416,7 +424,7 @@ test("the longest pending checkpoint wins", () => {
 	assert.equal(messageByDefaultNumber(messages, 2)?.text, "FirstSecond");
 });
 
-test("context windows reset response coalescing", () => {
+nodeTest("context windows reset response coalescing", () => {
 	const messages = collectCopyableMessages({
 		sessionManager: {
 			getBranch: () => [
@@ -450,7 +458,7 @@ test("context windows reset response coalescing", () => {
 	);
 });
 
-test("most recent user message skips blank text and reports why none matched", () => {
+nodeTest("most recent user message skips blank text and reports why none matched", () => {
 	assert.deepEqual(getMostRecentUserMessage(mixedBranch), {
 		kind: "message",
 		message: {
@@ -524,7 +532,7 @@ test("most recent user message skips blank text and reports why none matched", (
 	);
 });
 
-test("latest default message skips hidden tool messages", () => {
+nodeTest("latest default message skips hidden tool messages", () => {
 	const messages = [
 		copyableMessage("a0", "assistant", "raw assistant message", 0),
 		copyableMessage("t0", "toolResult", "raw newest tool message", 1),
@@ -540,7 +548,7 @@ test("latest default message skips hidden tool messages", () => {
 	);
 });
 
-test("numbered selection uses default-visible order", () => {
+nodeTest("numbered selection uses default-visible order", () => {
 	const messages = [
 		copyableMessage("u0", "user", "first user", 0),
 		copyableMessage("t0", "toolResult", "hidden tool", 1),
@@ -557,7 +565,7 @@ test("numbered selection uses default-visible order", () => {
 	assert.equal(messageByDefaultNumber(messages, 4), undefined);
 });
 
-test("picker filters, search, metadata, and peek", () => {
+nodeTest("picker filters, search, metadata, and peek", () => {
 	const messages = [
 		copyableMessage("u0", "user", "alpha user text", 0),
 		copyableMessage("a0", "assistant", "beta assistant text", 1),
@@ -632,24 +640,27 @@ test("picker filters, search, metadata, and peek", () => {
 	assert.equal(state.handleInput("\r"), "copy");
 });
 
-test("peek of a long message ending its wrapped prefix in whitespace matches the full message", () => {
-	const styledTheme = {
-		fg: (_color: string, text: string) => `\x1b[33m${text}\x1b[39m`,
-		bold: (text: string) => text,
-	} as never;
-	const state = new CopyMessagePickerState([
-		copyableMessage("u0", "user", `words ${" ".repeat(66_000)}tail end`, 0),
-	]);
-	state.handleInput("\t");
-	const lines = state
-		.render(100, styledTheme)
-		.map((line) => stripTerminalSequences(line).trimEnd());
-	const title = lines.findIndex((line) => line.startsWith("Peek raw user message"));
-	assert.deepEqual(lines.slice(title + 1, title + 3), ["  words", "  tail end"]);
-	assert.match(lines[title + 3] ?? "", /^\(1\/1\)/);
-});
+nodeTest(
+	"peek of a long message ending its wrapped prefix in whitespace matches the full message",
+	() => {
+		const styledTheme: CopyMessageTheme = {
+			fg: (_color, text) => `\x1b[33m${text}\x1b[39m`,
+			bold: (text) => text,
+		};
+		const state = new CopyMessagePickerState([
+			copyableMessage("u0", "user", `words ${" ".repeat(66_000)}tail end`, 0),
+		]);
+		state.handleInput("\t");
+		const lines = state
+			.render(100, styledTheme)
+			.map((line) => stripTerminalSequences(line).trimEnd());
+		const title = lines.findIndex((line) => line.startsWith("Peek raw user message"));
+		assert.deepEqual(lines.slice(title + 1, title + 3), ["  words", "  tail end"]);
+		assert.match(lines[title + 3] ?? "", /^\(1\/1\)/);
+	},
+);
 
-test("custom message filter", () => {
+nodeTest("custom message filter", () => {
 	const state = new CopyMessagePickerState([
 		copyableMessage("u0", "user", "user text", 0),
 		copyableMessage("c0", "custom", "custom text", 1),
@@ -679,7 +690,7 @@ test("custom message filter", () => {
 	assert.match(narrowState.render(80, plainTheme).join("\n"), /search “abcdefghij”/);
 });
 
-test("help hints fit the width", () => {
+nodeTest("help hints fit the width", () => {
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
 	const hints60 = state.render(60, plainTheme).at(-2) ?? "";
 	const hints80 = state.render(80, plainTheme).at(-2) ?? "";
@@ -707,31 +718,31 @@ test("help hints fit the width", () => {
 	assert.doesNotMatch(fullscreenHints, /(?:^| · )Home\/End jump/);
 });
 
-test("configured selection bindings take precedence", () => {
+nodeTest("configured selection bindings take precedence", () => {
 	const state = new CopyMessagePickerState([
 		copyableMessage("u0", "user", "first", 0),
 		copyableMessage("a0", "assistant", "second", 1),
 	]);
-	const inputs = {
+	const inputs: Record<string, string> = {
 		"tui.select.up": "\x14",
 		"tui.select.down": "\x01",
 		"tui.select.pageUp": "\x1b[5~",
 		"tui.select.pageDown": "\x1b[6~",
 		"tui.select.confirm": "\t",
 		"tui.select.cancel": "\x1b[109;3u",
-	} as const;
-	const keyHints = {
+	};
+	const keyHints: Record<string, KeyId> = {
 		"tui.select.up": "ctrl+t",
 		"tui.select.down": "ctrl+a",
 		"tui.select.pageUp": "pageUp",
 		"tui.select.pageDown": "pageDown",
 		"tui.select.confirm": "tab",
 		"tui.select.cancel": "alt+m",
-	} as const;
-	const keybindings = {
-		matches: (data: string, id: keyof typeof inputs) => data === inputs[id],
-		getKeys: (id: keyof typeof keyHints) => [keyHints[id]],
-	} as never;
+	};
+	const keybindings: PickerKeybindings = {
+		matches: (data, id) => data === inputs[id],
+		getKeys: (id) => (keyHints[id] === undefined ? [] : [keyHints[id]]),
+	};
 
 	assert.equal(state.handleInput("\x1b[A", keybindings), "none");
 	assert.equal(state.handleInput("\x14", keybindings), "render");
@@ -767,7 +778,7 @@ test("configured selection bindings take precedence", () => {
 	assert.doesNotMatch(hints80, /Home\/End jump|Ctrl\+U filters/);
 });
 
-test("configured cancel wins over Kitty Alt shortcuts", () => {
+nodeTest("configured cancel wins over Kitty Alt shortcuts", () => {
 	const state = new CopyMessagePickerState([copyableMessage("c0", "custom", "custom", 0)]);
 	const keybindings = new KeybindingsManager(TUI_KEYBINDINGS, {
 		"tui.select.cancel": ["alt+c", "alt+m"],
@@ -786,12 +797,12 @@ test("configured cancel wins over Kitty Alt shortcuts", () => {
 	}
 });
 
-test("Tab peek yields to a selection binding", () => {
+nodeTest("Tab peek yields to a selection binding", () => {
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
-	const keybindings = {
-		matches: (data: string, id: string) => data === "\t" && id === "tui.select.pageUp",
+	const keybindings: PickerKeybindings = {
+		matches: (data, id) => data === "\t" && id === "tui.select.pageUp",
 		getKeys: () => [],
-	} as never;
+	};
 
 	const hints = state.render(120, plainTheme, keybindings).at(-2) ?? "";
 	assert.doesNotMatch(hints, /Tab peek/);
@@ -799,17 +810,17 @@ test("Tab peek yields to a selection binding", () => {
 	assert.equal(state.peek, false);
 });
 
-test("configured page bindings", () => {
+nodeTest("configured page bindings", () => {
 	const messages = Array.from({ length: 12 }, (_, index) =>
 		copyableMessage(`a${index}`, "assistant", `message ${index}`, index),
 	);
 	const state = new CopyMessagePickerState(messages);
-	const pageBindings = {
-		matches: (data: string, id: string) =>
+	const pageBindings: PickerKeybindings = {
+		matches: (data, id) =>
 			(data === "P" && id === "tui.select.pageUp") ||
 			(data === "N" && id === "tui.select.pageDown"),
 		getKeys: () => [],
-	} as never;
+	};
 
 	assert.equal(state.handleInput("P", pageBindings), "render");
 	assert.equal(state.selectedMessage()?.id, "a3");
@@ -817,9 +828,9 @@ test("configured page bindings", () => {
 	assert.equal(state.selectedMessage()?.id, "a11");
 });
 
-test("shortest configured key hint", () => {
+nodeTest("shortest configured key hint", () => {
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
-	const keys = {
+	const keys: Record<string, readonly KeyId[]> = {
 		"tui.select.up": ["up", "ctrl+p", "alt+k"],
 		"tui.select.down": ["down", "ctrl+n", "alt+j"],
 		"tui.select.pageUp": ["pageUp"],
@@ -827,10 +838,10 @@ test("shortest configured key hint", () => {
 		"tui.select.confirm": ["enter", "space"],
 		"tui.select.cancel": ["escape", "ctrl+c"],
 	} as const;
-	const keybindings = {
+	const keybindings: PickerKeybindings = {
 		matches: () => false,
-		getKeys: (id: keyof typeof keys) => [...keys[id]],
-	} as never;
+		getKeys: (id) => [...(keys[id] ?? [])],
+	};
 
 	for (const width of [60, 80]) {
 		const hints = state.render(width, plainTheme, keybindings).at(-2) ?? "";
@@ -842,20 +853,20 @@ test("shortest configured key hint", () => {
 	}
 });
 
-test("long key hints stay within width", () => {
+nodeTest("long key hints stay within width", () => {
 	const state = new CopyMessagePickerState([copyableMessage("u0", "user", "first", 0)]);
-	const keys = {
+	const keys: Record<string, readonly KeyId[]> = {
 		"tui.select.up": ["ctrl+shift+alt+super+backspace"],
 		"tui.select.down": ["shift+ctrl+alt+super+backspace"],
 		"tui.select.pageUp": ["pageUp"],
 		"tui.select.pageDown": ["pageDown"],
 		"tui.select.confirm": ["alt+super+shift+ctrl+backspace"],
 		"tui.select.cancel": ["super+alt+shift+ctrl+backspace"],
-	} as const satisfies Record<string, readonly KeyId[]>;
-	const keybindings = {
+	};
+	const keybindings: PickerKeybindings = {
 		matches: () => false,
-		getKeys: (id: keyof typeof keys) => [...keys[id]],
-	} as never;
+		getKeys: (id) => [...(keys[id] ?? [])],
+	};
 
 	for (const width of [60, 80]) {
 		const lines = state.render(width, plainTheme, keybindings);
@@ -868,7 +879,7 @@ test("long key hints stay within width", () => {
 	}
 });
 
-test("Home and End jumps", () => {
+nodeTest("Home and End jumps", () => {
 	const messages = Array.from({ length: 5 }, (_, index) =>
 		copyableMessage(`a${index}`, "assistant", `raw assistant message ${index}`, index),
 	);
@@ -881,7 +892,7 @@ test("Home and End jumps", () => {
 	assert.equal(state.selectedMessage()?.text, "raw assistant message 4");
 });
 
-test("page and Ctrl jumps restore selection after search", () => {
+nodeTest("page and Ctrl jumps restore selection after search", () => {
 	const messages = Array.from({ length: 12 }, (_, index) =>
 		copyableMessage(`a${index}`, "assistant", `raw assistant message ${index}`, index),
 	);
@@ -911,16 +922,36 @@ test("page and Ctrl jumps restore selection after search", () => {
 	assert.equal(state.selectedMessage()?.text, "raw assistant message 9");
 });
 
-test("package lock excludes WorkOS URLs", () => {
+nodeTest("package lock excludes WorkOS URLs", () => {
 	const lock = readFileSync(new URL("../package-lock.json", import.meta.url), "utf8");
 	assert.doesNotMatch(lock, /(?:[a-z][a-z0-9+.-]*:)?\/\/[^\s"]*(?:workos|socket-firewall)/i);
 });
 
-test("picker disposal defers host completion and rejects reentrant input", async () => {
-	let component: { dispose?(): void; handleInput?(data: string): void } | undefined;
+/**
+ * The harness double below implements exactly these members; the predicate is the claim, checked at
+ * runtime instead of asserted with a cast.
+ */
+function isCommandContext(value: unknown): value is ExtensionCommandContext {
+	return (
+		isRecord(value) &&
+		typeof value.mode === "string" &&
+		isRecord(value.sessionManager) &&
+		typeof value.sessionManager.getBranch === "function" &&
+		isRecord(value.ui) &&
+		typeof value.ui.notify === "function" &&
+		typeof value.ui.custom === "function"
+	);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+nodeTest("picker disposal defers host completion and rejects reentrant input", async () => {
+	let component: { dispose?: () => void; handleInput?: (data: string) => void } | undefined;
 	let disposing = false;
 	let completions = 0;
-	const ctx = {
+	const ctx: unknown = {
 		mode: "tui",
 		sessionManager: {
 			getBranch: () => [
@@ -958,9 +989,14 @@ test("picker disposal defers host completion and rejects reentrant input", async
 					);
 				}),
 		},
-	} as unknown as ExtensionCommandContext;
-	const command = captureRegisteredCommands().get("copy-message")!.handler("", ctx);
-	assert.ok(component?.dispose);
+	};
+	assert.ok(
+		isCommandContext(ctx),
+		"The harness double must provide the context members this path exercises.",
+	);
+	const command = captureRegisteredCommands().get("copy-message")?.handler("", ctx);
+	assert.ok(command !== undefined);
+	assert.ok(component !== undefined && "dispose" in component);
 	disposing = true;
 	component.dispose();
 	component.dispose();

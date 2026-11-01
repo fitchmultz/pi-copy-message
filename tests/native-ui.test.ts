@@ -2,17 +2,82 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import nodeTest from "node:test";
 import { fileURLToPath } from "node:url";
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+
+/** The fixture clipboard file's shape, validated on read rather than asserted. */
+interface ClipboardState {
+	read?: string | undefined;
+	text?: string | undefined;
+	write?: string | undefined;
+}
+
+/** Host internals this suite observes because the SDK exposes no public observer for them. */
+interface RendererProbe {
+	mode: string;
+	previousLines?: string[] | undefined;
+	previousScreen?: string[] | undefined;
+}
+
+type NotifyFn = (text: string, type?: "info" | "warning" | "error") => void;
+
+function isNotifyFn(value: unknown): value is NotifyFn {
+	return typeof value === "function";
+}
+
+interface ModeSwitchProbe {
+	switchTuiMode: (mode: string) => boolean;
+}
+
+function withModeSwitch(value: object): ModeSwitchProbe {
+	assert.ok(isModeSwitchHost(value));
+	return value;
+}
+
+interface GraphemeIterator {
+	next: () => { done?: boolean | undefined; value: { input: string } };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isRendererProbe(value: unknown): value is RendererProbe {
+	return isRecord(value) && typeof value.mode === "string";
+}
+
+function isModeSwitchHost(value: unknown): value is ModeSwitchProbe {
+	return isRecord(value) && typeof value.switchTuiMode === "function";
+}
+
+function isGraphemeIterator(value: unknown): value is GraphemeIterator {
+	return isRecord(value) && typeof value.next === "function";
+}
+
+function readClipboardState(json: string): ClipboardState {
+	const parsed: unknown = JSON.parse(json);
+	if (!isRecord(parsed)) {
+		return {};
+	}
+	const record: Record<string, unknown> = parsed;
+	const state: ClipboardState = {};
+	for (const key of ["read", "text", "write"] as const) {
+		const value = record[key];
+		if (typeof value === "string") {
+			state[key] = value;
+		}
+	}
+	return state;
+}
 import { type Terminal, stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 
 class MemoryTerminal implements Terminal {
 	columns = 100;
 	rows = 30;
 	kittyProtocolActive = false;
-	onInput?: (data: string) => void;
-	onResize?: () => void;
+	onInput?: ((data: string) => void) | undefined;
+	onResize?: (() => void) | undefined;
 	start(input: (data: string) => void, resize: () => void) {
 		this.onInput = input;
 		this.onResize = resize;
@@ -21,17 +86,39 @@ class MemoryTerminal implements Terminal {
 		this.onInput = undefined;
 		this.onResize = undefined;
 	}
-	async drainInput() {}
-	write(_data: string) {}
-	moveBy(_lines: number) {}
-	hideCursor() {}
-	showCursor() {}
-	clearLine() {}
-	clearFromCursor() {}
-	clearScreen() {}
-	setTitle(_title: string) {}
-	setProgress(_active: boolean) {}
-	setProgramStatus() {}
+	async drainInput() {
+		// The memory terminal has no buffered input to deliver.
+	}
+	write(_data: string) {
+		// Renders are observed through the host's previous screen, not captured writes.
+	}
+	moveBy(_lines: number) {
+		// Cursor movement is a no-op; the memory terminal has no cursor state.
+	}
+	hideCursor() {
+		// Nothing to hide: the memory terminal does not track cursor visibility.
+	}
+	showCursor() {
+		// Nothing to show: the memory terminal does not track cursor visibility.
+	}
+	clearLine() {
+		// Repaint happens through the host's previous-screen snapshot.
+	}
+	clearFromCursor() {
+		// Repaint happens through the host's previous-screen snapshot.
+	}
+	clearScreen() {
+		// Repaint happens through the host's previous-screen snapshot.
+	}
+	setTitle(_title: string) {
+		// Terminal titles are not observable in the memory terminal.
+	}
+	setProgress(_active: boolean) {
+		// Progress reporting is not observable in the memory terminal.
+	}
+	setProgramStatus() {
+		// Program status is not observable in the memory terminal.
+	}
 	send(data: string) {
 		assert.ok(this.onInput);
 		this.onInput(data);
@@ -42,9 +129,12 @@ class MemoryTerminal implements Terminal {
 		this.onResize?.();
 	}
 }
-const rendered = () => new Promise<void>((resolve) => setTimeout(resolve, 40));
+const rendered = () =>
+	new Promise<void>((resolve) => {
+		setTimeout(resolve, 40);
+	});
 
-test(
+nodeTest(
 	"native copy commands verify clipboard delivery and preserve branch/picker lifecycle",
 	{ timeout: 20_000 },
 	async (t) => {
@@ -76,16 +166,22 @@ test(
 		if (process.platform === "linux") {
 			process.env.WAYLAND_DISPLAY = "fixture";
 		}
-		const state = (value: object) =>
-			writeFileSync(process.env.COPY_TEST_CLIPBOARD!, JSON.stringify(value));
-		const clipboard = () => JSON.parse(readFileSync(process.env.COPY_TEST_CLIPBOARD!, "utf8"));
-		const writes = () => {
+		const clipboardPath = (): string => {
+			const path = process.env.COPY_TEST_CLIPBOARD;
+			assert.ok(path !== undefined);
+			return path;
+		};
+		const state = (value: ClipboardState): void =>
+			writeFileSync(clipboardPath(), JSON.stringify(value));
+		const clipboard = (): ClipboardState =>
+			readClipboardState(readFileSync(clipboardPath(), "utf8"));
+		const writes = (): ClipboardState[] => {
 			try {
-				return readFileSync(process.env.COPY_TEST_CLIPBOARD! + ".writes", "utf8")
+				return readFileSync(clipboardPath() + ".writes", "utf8")
 					.trim()
 					.split("\n")
 					.filter(Boolean)
-					.map((line) => JSON.parse(line));
+					.map((line) => readClipboardState(line));
 			} catch {
 				return [];
 			}
@@ -178,35 +274,38 @@ test(
 			await mode.init();
 			await runtime.session.prompt("/qa-context");
 			// ponytail: no public viewport observer exists; this fixture uses the host renderer until one does.
-			const renderer = () =>
-				(
-					mode as unknown as {
-						renderer: {
-							mode: string;
-							previousScreen?: string[];
-							previousLines?: string[];
-						};
-					}
-				).renderer;
+			const renderer = () => {
+				const value: unknown = Reflect.get(mode, "renderer");
+				assert.ok(isRendererProbe(value));
+				return value;
+			};
 			const screen = () =>
 				(renderer().mode === "fullscreen"
 					? renderer().previousScreen
 					: renderer().previousLines) ?? [];
 			assert.equal(renderer().mode, "fullscreen");
-			const notes: Array<{ text: string; type?: string }> = [];
-			// ponytail: no public notification observer exists; observe the native sink until the SDK exposes one.
-			const notifications = mode as unknown as {
-				showExtensionNotify(text: string, type?: "info" | "warning" | "error"): void;
+			const notes: Array<{ text: string; type?: string | undefined }> = [];
+			const lastNote = () => {
+				const note = notes.at(-1);
+				assert.ok(note !== undefined);
+				return note;
 			};
-			const notify = notifications.showExtensionNotify.bind(mode);
-			t.mock.method(
-				notifications,
-				"showExtensionNotify",
-				(text: string, type?: "info" | "warning" | "error") => {
-					notes.push({ text, type });
-					notify(text, type);
-				},
-			);
+			const activeContext = () => {
+				assert.ok(context !== undefined);
+				return context;
+			};
+			// ponytail: no public notification observer exists; observe the native sink until the SDK exposes one.
+			const originalNotify: unknown = Reflect.get(mode, "showExtensionNotify");
+			assert.ok(isNotifyFn(originalNotify));
+			const hostNotify = originalNotify;
+			const notify = (text: string, type?: "info" | "warning" | "error"): void => {
+				notes.push({ text, type });
+				hostNotify.call(mode, text, type);
+			};
+			Reflect.set(mode, "showExtensionNotify", notify);
+			t.after(() => {
+				Reflect.set(mode, "showExtensionNotify", hostNotify);
+			});
 			const manager = runtime.session.sessionManager;
 			manager.appendMessage({
 				role: "user",
@@ -244,7 +343,10 @@ test(
 					await runtime.session.prompt("/copy-message 2");
 					assert.equal(clipboard().text, "Stored answer");
 					await runtime.session.prompt("/copy-user --with-meta");
-					assert.match(clipboard().text, /^user at .*: Stored user 界🙂\nsecond line\n$/);
+					assert.match(
+						clipboard().text ?? "",
+						/^user at .*: Stored user 界🙂\nsecond line\n$/,
+					);
 					manager.appendContextEdit(answer, null);
 					await runtime.session.prompt("/copy-message latest");
 					assert.equal(clipboard().text, "Stored user 界🙂\nsecond line\n");
@@ -266,7 +368,7 @@ test(
 						state(value);
 						await runtime.session.prompt("/copy-user");
 						assert.equal(notes.at(-1)?.type, "warning");
-						assert.doesNotMatch(notes.at(-1)!.text, /^Copied /);
+						assert.doesNotMatch(lastNote().text, /^Copied /);
 					}
 					state({ write: "throw" });
 					await runtime.session.prompt("/copy-user");
@@ -275,14 +377,14 @@ test(
 					state({});
 					await runtime.session.prompt("/copy-user");
 					assert.equal(notes.at(-1)?.type, "warning");
-					assert.match(notes.at(-1)!.text, /remote terminal.*unverified/);
+					assert.match(lastNote().text, /remote terminal.*unverified/);
 					delete process.env.SSH_CONNECTION;
 				},
 			);
 
 			await t.test(
 				"native picker bounds long-preview enumeration across redraws and navigation",
-				async (t) => {
+				async (subtest) => {
 					const ascii = "x".repeat(4096);
 					const unicode = "e\u0301👩‍💻🇺🇸界".repeat(256);
 					const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
@@ -303,17 +405,18 @@ test(
 						timestamp: Date.UTC(2026, 9, 22),
 					});
 					const iterator = segmenter.segment("")[Symbol.iterator]();
-					const prototype = Object.getPrototypeOf(iterator) as typeof iterator;
+					const prototype: unknown = Object.getPrototypeOf(iterator);
+					assert.ok(isGraphemeIterator(prototype));
 					const next = prototype.next;
 					const counts = new Map<object, { text: string; yields: number }>();
 					// Count actual native iterator yields, not elapsed time or ICU preprocessing.
-					const counter = t.mock.method(
+					const counter = subtest.mock.method(
 						prototype,
 						"next",
-						function (this: typeof iterator) {
+						function (this: GraphemeIterator) {
 							const result = next.call(this);
 							if (
-								!result.done &&
+								result.done !== true &&
 								(result.value.input === ascii || result.value.input === unicode)
 							) {
 								const record = counts.get(this) ?? {
@@ -331,7 +434,9 @@ test(
 					const picker = runtime.session.prompt("/copy-message");
 					const work: number[][] = [];
 					for (const action of [
-						() => {},
+						() => {
+							// The first sample renders without an intervening action.
+						},
 						() => terminal.resize(1000, 31),
 						() => terminal.send("\x1b[A"),
 					]) {
@@ -354,15 +459,16 @@ test(
 						"render/redraw/navigation must not write the clipboard",
 					);
 					counter.mock.restore();
-					t.diagnostic(
+					subtest.diagnostic(
 						`native long-preview yields (open/redraw/up): ${JSON.stringify(work)}`,
 					);
 					for (const render of work) {
-						for (const yields of render)
-							{assert.ok(
+						for (const yields of render) {
+							assert.ok(
 								yields <= 301,
 								`${yields} yields exceeds the 300-preview lookahead bound`,
-							);}
+							);
+						}
 					}
 
 					// Existing isolated native delivery, never the operator clipboard.
@@ -371,7 +477,7 @@ test(
 					assert.equal(clipboard().text, unicode);
 					assert.equal(notes.at(-1)?.text, `Copied user message: “${notification}”`);
 					await runtime.session.prompt("/copy-user --with-meta");
-					assert.ok(clipboard().text.endsWith(": " + unicode));
+					assert.ok((clipboard().text ?? "").endsWith(": " + unicode));
 					const parts = Array.from(segmenter.segment(unicode), (part) => part.segment);
 					for (const length of [47, 48, 49]) {
 						const text = parts.slice(0, length).join("");
@@ -389,13 +495,11 @@ test(
 
 			state({});
 			for (const tuiMode of ["fullscreen", "regular"] as const) {
-				(mode as unknown as { switchTuiMode(mode: string): boolean }).switchTuiMode(
-					tuiMode,
-				);
+				withModeSwitch(mode).switchTuiMode(tuiMode);
 				await t.test(
 					`${tuiMode} search, peek, metadata, resize and cancel preserve editor focus`,
 					async () => {
-						context!.ui.setEditorText("untouched draft 界🙂");
+						activeContext().ui.setEditorText("untouched draft 界🙂");
 						const before = writes().length;
 						const picker = runtime.session.prompt("/copy-message");
 						await rendered();
@@ -411,9 +515,9 @@ test(
 						terminal.send("\x1b");
 						await picker;
 						assert.equal(writes().length, before);
-						assert.equal(context!.ui.getEditorText(), "untouched draft 界🙂");
+						assert.equal(activeContext().ui.getEditorText(), "untouched draft 界🙂");
 						terminal.send("!");
-						assert.equal(context!.ui.getEditorText(), "untouched draft 界🙂!");
+						assert.equal(activeContext().ui.getEditorText(), "untouched draft 界🙂!");
 						terminal.resize(100, 30);
 					},
 				);
@@ -421,9 +525,7 @@ test(
 			await t.test(
 				"native pointer copies the clicked historical message and returns keyboard focus",
 				async () => {
-					(mode as unknown as { switchTuiMode(mode: string): boolean }).switchTuiMode(
-						"fullscreen",
-					);
+					withModeSwitch(mode).switchTuiMode("fullscreen");
 					const picker = runtime.session.prompt("/copy-message");
 					await rendered();
 					const row = screen().findIndex((line) => line.includes("Stored answer"));
@@ -433,7 +535,7 @@ test(
 					await picker;
 					assert.equal(clipboard().text, "Stored answer");
 					terminal.send("!");
-					assert.match(context!.ui.getEditorText(), /!!$/);
+					assert.match(activeContext().ui.getEditorText(), /!!$/);
 				},
 			);
 			await t.test(
@@ -443,7 +545,8 @@ test(
 					let picker = runtime.session.prompt("/copy-message");
 					await rendered();
 					assert.equal(
-						(await context!.navigateTree(answer, { summarize: false })).cancelled,
+						(await activeContext().navigateTree(answer, { summarize: false }))
+							.cancelled,
 						false,
 					);
 					await picker;
@@ -451,7 +554,7 @@ test(
 					assert.equal(clipboard().text, "Stored answer");
 					picker = runtime.session.prompt("/copy-message");
 					await rendered();
-					const outgoing = context!;
+					const outgoing = activeContext();
 					assert.equal((await outgoing.newSession()).cancelled, false);
 					await picker;
 					assert.equal(writes().length, before + 1);
@@ -468,7 +571,7 @@ test(
 					picker = runtime.session.prompt("/copy-message");
 					await rendered();
 					assert.equal(
-						(await context!.fork(marker, { position: "at" })).cancelled,
+						(await activeContext().fork(marker, { position: "at" })).cancelled,
 						false,
 					);
 					await picker;
@@ -483,7 +586,7 @@ test(
 					);
 					picker = runtime.session.prompt("/copy-message");
 					await rendered();
-					assert.equal((await context!.switchSession(journal)).cancelled, false);
+					assert.equal((await activeContext().switchSession(journal)).cancelled, false);
 					await picker;
 					await runtime.session.prompt("/qa-context");
 					await runtime.session.prompt("/copy-message latest");
@@ -497,11 +600,15 @@ test(
 					const before = writes().length;
 					const picker = runtime.session.prompt("/copy-message");
 					let settled = false;
-					void picker.then(() => {
-						settled = true;
-					});
+					picker
+						.then(() => {
+							settled = true;
+						})
+						.catch((error: unknown) => {
+							assert.fail(`disposed picker promise rejected: ${String(error)}`);
+						});
 					await rendered();
-					await context!.reload();
+					await activeContext().reload();
 					await runtime.session.prompt("/qa-context");
 					await rendered();
 					// Reload disposes custom UI before session_shutdown on the maintained fork.
@@ -512,7 +619,7 @@ test(
 					await runtime.session.prompt("/copy-message latest");
 					assert.equal(clipboard().text, "New branch marker");
 					terminal.send("!");
-					assert.match(context!.ui.getEditorText(), /!$/);
+					assert.match(activeContext().ui.getEditorText(), /!$/);
 				},
 			);
 			await t.test(
@@ -521,23 +628,27 @@ test(
 					let disposals = 0;
 					const sibling = () => {
 						let complete!: (value: null) => void;
-						const closed = context!.ui.custom<null>((_tui, _theme, _keys, done) => {
-							complete = done;
-							return {
-								render: () => ["Sibling disposal fixture"],
-								invalidate() {},
-								dispose() {
-									disposals++;
-								},
-							};
-						});
+						const closed = activeContext().ui.custom<null>(
+							(_tui, _theme, _keys, done) => {
+								complete = done;
+								return {
+									render: () => ["Sibling disposal fixture"],
+									invalidate() {
+										// The fixture caches nothing, so there is nothing to invalidate.
+									},
+									dispose() {
+										disposals++;
+									},
+								};
+							},
+						);
 						return { closed, complete: () => complete(null) };
 					};
 					// Compare with the host's own sibling-only behavior. Official 1.3.0 does not
 					// dispose inline custom UI at reload; the fork's dialog stack does.
 					const baseline = sibling();
 					await rendered();
-					await context!.reload();
+					await activeContext().reload();
 					await runtime.session.prompt("/qa-context");
 					const expectedDisposals = disposals;
 					baseline.complete();
@@ -547,13 +658,17 @@ test(
 					const beforeWrites = writes().length;
 					const picker = runtime.session.prompt("/copy-message");
 					let settled = false;
-					void picker.then(() => {
-						settled = true;
-					});
+					picker
+						.then(() => {
+							settled = true;
+						})
+						.catch((error: unknown) => {
+							assert.fail(`disposed picker promise rejected: ${String(error)}`);
+						});
 					await rendered();
 					const peer = sibling();
 					await rendered();
-					await context!.reload();
+					await activeContext().reload();
 					await runtime.session.prompt("/qa-context");
 					await rendered();
 					assert.equal(
@@ -575,17 +690,15 @@ test(
 					const before = notes.length;
 					const copy = runtime.session.prompt("/copy-user");
 					await rendered();
-					assert.equal((await context!.newSession()).cancelled, false);
+					assert.equal((await activeContext().newSession()).cancelled, false);
 					await copy;
 					assert.equal(notes.length, before);
 				},
 			);
 			await t.test(
 				"native peek wrapping work does not grow with message length",
-				async (t) => {
-					(mode as unknown as { switchTuiMode(mode: string): boolean }).switchTuiMode(
-						"fullscreen",
-					);
+				async (subtest) => {
+					withModeSwitch(mode).switchTuiMode("fullscreen");
 					const word = "naïve café 🙂 ";
 					// Distinct starts keep native width caching from favoring either render.
 					const small = "1x " + word.repeat(12_000);
@@ -594,21 +707,23 @@ test(
 					for (const content of [small, large]) {
 						session.appendMessage({ role: "user", content, timestamp: Date.now() });
 					}
-					const iterator = new Intl.Segmenter(undefined, { granularity: "grapheme" })
-						.segment("")
-						[Symbol.iterator]();
-					const prototype = Object.getPrototypeOf(iterator) as typeof iterator;
+					const segments = new Intl.Segmenter(undefined, {
+						granularity: "grapheme",
+					}).segment("");
+					const iterator = segments[Symbol.iterator]();
+					const prototype: unknown = Object.getPrototypeOf(iterator);
+					assert.ok(isGraphemeIterator(prototype));
 					const next = prototype.next;
 					let yields = 0;
 					// A recording mock would retain every call; count native iterator yields directly.
-					prototype.next = function (this: typeof iterator) {
+					prototype.next = function (this: GraphemeIterator) {
 						const result = next.call(this);
-						if (!result.done) {
+						if (result.done !== true) {
 							yields++;
 						}
 						return result;
 					};
-					t.after(() => {
+					subtest.after(() => {
 						prototype.next = next;
 					});
 					const peekRows = () => {
@@ -637,12 +752,15 @@ test(
 					terminal.send("\x1b");
 					await picker;
 					assert.equal(writes().length, before);
-					t.diagnostic(
+					subtest.diagnostic(
 						`native peek grapheme yields (10x message, 1x message): ${JSON.stringify(work)}`,
 					);
+					const longRun = work[0];
+					const shortRun = work[1];
+					assert.ok(longRun !== undefined && shortRun !== undefined);
 					assert.ok(
-						work[0]! <= work[1]! * 1.25,
-						`${work[0]} yields for a 10x message exceeds ${work[1]} for the 1x message`,
+						longRun <= shortRun * 1.25,
+						`${longRun} yields for a 10x message exceeds ${shortRun} for the 1x message`,
 					);
 					for (const { text, rows } of peeks) {
 						assert.equal(rows[16], "  … more wrapped lines");
