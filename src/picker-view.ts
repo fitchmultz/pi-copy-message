@@ -211,7 +211,7 @@ function optionalHints(view: ViewContext, hasCustomMessages: boolean): Array<str
   const peek = available(PEEK_HINT.data, keybindings) ? `${PEEK_HINT.label} peek` : undefined;
   const filters = FILTER_HINTS.filter((hint) => available(hint.data, keybindings));
   const filterHint =
-    filters.length > 0 ? `${filters.map((hint) => hint.label).join("/")} filters` : undefined;
+    filters.length > 0 ? `Ctrl+${filters.map((hint) => hint.label).join("/")} filters` : undefined;
   const custom =
     hasCustomMessages && available(CUSTOM_HINT.data, keybindings)
       ? `${CUSTOM_HINT.label} custom`
