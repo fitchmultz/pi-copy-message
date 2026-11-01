@@ -269,9 +269,7 @@ function countFor(diagnostics: unknown[], file: string): string[] {
 }
 
 nodeTest("committed diagnostic inputs produce exactly their recorded diagnostics", () => {
-  const onDisk = readdirSync(probes)
-    .filter((name) => name.endsWith(".test.ts") || name === "helper.ts")
-    .sort();
+  const onDisk = readdirSync(probes).sort();
   assert.deepEqual(
     onDisk,
     Object.keys(COMMITTED).sort(),
