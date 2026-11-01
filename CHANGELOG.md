@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Development dependencies move to Pi 1.4.0 (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`) and `@types/node` 24.19.2.
+- Adopt the strict oxlint/oxfmt engineering policy: pinned checker configuration, a conformance verifier, a diagnostic-input harness, and a repository-wide format pass.
+- Split the extension entry module into focused source modules (`display-text`, `session-content`, `picker-view`, `picker-state`, `arguments`, `clipboard`) to satisfy the policy's structural limits; registered behavior is unchanged.
+- Test files register `node:test` through the local names the checker's test profile maps.
+
 ## 4.0.2 - 2026-11-01
 
 <!-- npm-release:unreleased:start -->
