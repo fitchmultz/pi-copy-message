@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 4.0.3 - 2026-11-01
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- chore(deps-dev): bump brace-expansion from 5.0.9 to 5.0.12 (#45) ([fa3e6e4](https://github.com/fitchmultz/pi-copy-message/commit/fa3e6e4c7527017e6d2189d887245ad70655e764))
+
+### What's Changed
+* chore(deps-dev): bump brace-expansion from 5.0.9 to 5.0.12 by @dependabot[bot] in https://github.com/fitchmultz/pi-copy-message/pull/45
+
+### New Contributors
+* @dependabot[bot] made their first contribution in https://github.com/fitchmultz/pi-copy-message/pull/45
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.2...v4.0.3
+
 ## 4.0.2 - 2026-11-01
 
 <!-- npm-release:unreleased:start -->
