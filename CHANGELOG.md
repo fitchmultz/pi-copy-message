@@ -2,10 +2,24 @@
 
 ## Unreleased
 
+## 4.0.5 - 2026-11-01
+
+<!-- npm-release:unreleased:start -->
+
 - Development dependencies move to Pi 1.4.0 (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`) and `@types/node` 24.19.2.
 - Adopt Strict Oxlint and Oxfmt Engineering Standard v5.1.2: the adopted copy plus adoption and exception records in `docs/quality/`, pinned checker and formatter configuration, a conformance verifier, an expanded qualification harness, and an acceptance aggregator that runs every gate independently. One recorded quality exception (QX-001) covers the node:test registration mapping in the test profile.
 - Split the extension entry module into focused source modules (`display-text`, `session-content`, `picker-view`, `picker-state`, `arguments`, `clipboard`) to satisfy the policy's structural limits; registered behavior is unchanged.
 - Test files register `node:test` through the local names the checker's test profile maps.
+
+<!-- npm-release:unreleased:end -->
+
+- build: adopt Pi 1.4.0 dependencies and quality standard v5.1.2 (#49) ([581c230](https://github.com/fitchmultz/pi-copy-message/commit/581c230388cee144fae6b87573b1427349fbc008))
+
+### What's Changed
+
+- Pi 1.4.0 + strict oxlint/oxfmt policy adoption by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/49
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.4...v4.0.5
 
 ## 4.0.4 - 2026-11-01
 

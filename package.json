@@ -1,6 +1,6 @@
 {
   "name": "pi-copy-message",
-  "version": "4.0.4",
+  "version": "4.0.5",
   "description": "Pi extension with a searchable TUI picker for copying raw session messages",
   "author": "Mitch Fultz (https://github.com/fitchmultz)",
   "license": "MIT",
