@@ -1,161 +1,203 @@
 /**
- * Policy conformance verifier (Strict Oxlint and Oxfmt Engineering Policy v4.5,
- * release strict-quality-4.5). Deterministic and dependency-light: it pins the effective lint
- * configuration, the tool floors, project coverage, and the suppression budget, then prints a
- * report and exits nonzero on any drift.
+ * Policy conformance verifier for the adopted standard (`docs/quality/strict-oxlint-oxfmt-5.1.1.md`).
+ * It compares the effective lint and formatter configuration against the standard's own normative
+ * blocks, permits only the recorded quality allowance, requires compiler membership for every
+ * maintained source, and fails on any suppression directive.
  */
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseSync } from "oxc-parser";
 
-import {
-	packageJson,
-	policyBaselineDigest,
-	policyBaselineMeta,
-	sourceGlobs,
-	toolFloors,
-} from "./policy-baseline.ts";
+import { qualityExceptions, sourceProfiles } from "./policy-baseline.ts";
 
 const repo = resolve(import.meta.dirname, "..");
+const guidePath = join(repo, "docs/quality/strict-oxlint-oxfmt-5.1.1.md");
 const problems: string[] = [];
 const report: string[] = [];
 
-function sha256(text: string): string {
-	return createHash("sha256").update(text).digest("hex");
+const exception = qualityExceptions[0];
+const floatingRule = "typescript/no-floating-promises";
+
+const guideLint = jsonBlocks(readFileSync(guidePath, "utf8")).find(isLintBlock);
+const guideFormat = jsonBlocks(readFileSync(guidePath, "utf8")).find(isFormatBlock);
+if (guideLint === undefined || guideFormat === undefined) {
+  problems.push("the adopted standard copy is missing its normative configuration blocks");
 }
 
-function readJson(path: string): Record<string, unknown> {
-	const parsed: unknown = JSON.parse(readFileSync(join(repo, path), "utf8"));
-	return isRecord(parsed) ? parsed : {};
+const expectedLint = structuredClone(guideLint);
+if (expectedLint !== undefined) {
+  const candidates: readonly unknown[] = Array.isArray(expectedLint.overrides)
+    ? expectedLint.overrides
+    : [];
+  const override = candidates.find((o) => isRecord(o) && isRecord(o.rules) && isTestProfile(o));
+  if (isRecord(override) && isRecord(override.rules)) {
+    override.rules[floatingRule] = exception.options;
+  }
 }
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null;
+if (!same(readJson(".oxlintrc.json"), expectedLint)) {
+  problems.push(".oxlintrc.json differs from the standard's baseline plus the recorded allowance");
 }
-
-const configDigest = sha256(JSON.stringify(readJson(".oxlintrc.json")));
+if (guideFormat !== undefined && !same(readJson(".oxfmtrc.json"), guideFormat)) {
+  problems.push(".oxfmtrc.json differs from the standard's formatter block");
+}
 report.push(
-	`config digest ${configDigest.slice(0, 16)} against baseline ${policyBaselineDigest.slice(0, 16)}`,
+  `config digests: lint ${digest(readJson(".oxlintrc.json"))} format ${digest(readJson(".oxfmtrc.json"))}`,
 );
-if (configDigest !== policyBaselineDigest) {
-	problems.push("the effective lint configuration differs from the recorded policy baseline");
+report.push(`recorded quality allowance: ${exception.id}`);
+
+const devDependencies = readJson("package.json").devDependencies;
+for (const [name, floor] of Object.entries(sourceProfiles.toolFloors)) {
+  const declared = isRecord(devDependencies) ? devDependencies[name] : undefined;
+  if (typeof declared !== "string") {
+    problems.push(`${name} is not a dev dependency`);
+  } else if (compareVersions(declared.replace(/^[^0-9]*/, ""), floor) < 0) {
+    problems.push(`${name} ${declared} is below the qualified version ${floor}`);
+  }
 }
 
-const dev = isRecord(packageJson.devDependencies) ? packageJson.devDependencies : {};
-for (const [name, floor] of Object.entries(toolFloors)) {
-	const declared = typeof dev[name] === "string" ? dev[name] : undefined;
-	if (declared === undefined) {
-		problems.push(`${name} is not a dev dependency`);
-		continue;
-	}
-	const version = declared.replace(/^[^0-9]*/, "");
-	if (compareVersions(version, floor) < 0) {
-		problems.push(`${name} ${declared} is below the policy floor ${floor}`);
-	}
+const compilerProject = readJson("tsconfig.json");
+const compilerOptions = compilerProject.compilerOptions;
+if (isRecord(compilerOptions)) {
+  for (const option of sourceProfiles.requiredCompilerOptions) {
+    if (compilerOptions[option] !== true) {
+      problems.push(`compiler option ${option} must stay enabled`);
+    }
+  }
+}
+const include: string[] = Array.isArray(compilerProject.include)
+  ? compilerProject.include.map(String)
+  : [];
+const maintained: string[] = [];
+const globs = sourceProfiles.profiles.flatMap((profile) => [...profile.globs]);
+for (const glob of globs) {
+  const root = glob.split("/")[0] ?? "";
+  for (const file of walk(root, `${root}/`)) {
+    if (matches(glob, file)) {
+      recordMaintainedSource(file);
+    }
+  }
 }
 
-function compareVersions(a: string, b: string): number {
-	const left = a.split(".").map(Number);
-	const right = b.split(".").map(Number);
-	for (let i = 0; i < 3; i += 1) {
-		const l = left[i] ?? 0;
-		const r = right[i] ?? 0;
-		if (l !== r) {
-			return l < r ? -1 : 1;
-		}
-	}
-	return 0;
-}
-
-const maintained = listFiles(sourceGlobs);
 report.push(`maintained sources: ${maintained.length}`);
-
-const tsconfig = readJson("tsconfig.json");
-const include: string[] = Array.isArray(tsconfig.include) ? tsconfig.include.map(String) : [];
-const uncovered = maintained.filter((file) => !include.some((glob) => matches(glob, file)));
-report.push(`files linted but outside the compiler project: ${uncovered.length}`);
-for (const file of uncovered) {
-	report.push(`  outside compiler project: ${file}`);
-}
 
 let directives = 0;
 for (const file of maintained) {
-	if (!/\.[cm]?[jt]sx?$/.test(file)) {
-		continue;
-	}
-	const parsed = parseSync(file, readFileSync(join(repo, file), "utf8"), {
-		sourceType: "module",
-	});
-	for (const comment of parsed.comments) {
-		const text = readFileSync(join(repo, file), "utf8").slice(comment.start, comment.end);
-		if (/(?:eslint|oxlint)-disable/.test(text)) {
-			directives += 1;
-			problems.push(`${file}: unauthorized suppression directive`);
-		}
-		if (/@(ts-ignore|ts-expect-error|ts-nocheck|ts-check)/.test(text)) {
-			problems.push(`${file}: TypeScript suppression comment`);
-		}
-	}
+  if (!/\.[cm]?[jt]sx?$/.test(file)) {
+    continue;
+  }
+  const text = readFileSync(join(repo, file), "utf8");
+  for (const comment of parseSync(file, text, { sourceType: "module" }).comments) {
+    const body = text.slice(comment.start, comment.end);
+    if (/(?:eslint|oxlint)-disable/.test(body)) {
+      directives += 1;
+      problems.push(`${file}: suppression directive found where none is authorized`);
+    }
+    if (/@(?:ts-ignore|ts-expect-error|ts-nocheck|ts-check)/.test(body)) {
+      problems.push(`${file}: TypeScript suppression comment`);
+    }
+  }
 }
-report.push(`suppression directives: ${directives} (budget: 0)`);
+report.push(`suppression directives: ${directives}`);
 
-function listFiles(globs: string[]): string[] {
-	const found: string[] = [];
-	for (const dir of new Set(globs.map((glob) => glob.split("/")[0] ?? "."))) {
-		walk(join(repo, dir), (file) => {
-			if (globs.some((glob) => matches(glob, file))) {
-				found.push(file);
-			}
-		});
-	}
-	return found.sort();
+console.log(`policy conformance (${sourceProfiles.standard})`);
+for (const line of report) {
+  console.log(`  ${line}`);
 }
+if (problems.length > 0) {
+  for (const problem of problems) {
+    console.error(`  FAIL ${problem}`);
+  }
+  process.exit(1);
+}
+console.log("  OK: configuration, allowance, tool floors, coverage, and directive budget conform.");
 
-function walk(dir: string, visit: (file: string) => void): void {
-	let names: string[];
-	try {
-		names = readdirSync(dir);
-	} catch {
-		return;
-	}
-	for (const name of names) {
-		const full = join(dir, name);
-		if (statSync(full).isDirectory()) {
-			if (name !== "node_modules") {
-				walk(full, visit);
-			}
-		} else {
-			visit(relative(repo, full));
-		}
-	}
+/** The test-profile override is the one carrying the reduced structural limits. */
+function isTestProfile(override: Record<string, unknown>): boolean {
+  return JSON.stringify(override.rules ?? {}).includes('"max":15');
 }
 
-function relative(dir: string, file: string): string {
-	return file.slice(dir.length + 1);
+function jsonBlocks(markdown: string): unknown[] {
+  const found: unknown[] = [];
+  for (const match of markdown.matchAll(/```json\n([\s\S]*?)```/g)) {
+    const body: unknown = JSON.parse(match[1] ?? "");
+    found.push(body);
+  }
+  return found;
+}
+
+function isLintBlock(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && "plugins" in value && "categories" in value && "overrides" in value;
+}
+
+function isFormatBlock(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && "printWidth" in value;
+}
+
+function digest(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 16);
+}
+
+function same(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function readJson(path: string): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(readFileSync(join(repo, path), "utf8"));
+  return isRecord(parsed) ? parsed : {};
+}
+
+function recordMaintainedSource(file: string): void {
+  if (maintained.includes(file)) {
+    return;
+  }
+  maintained.push(file);
+  if (!include.some((entry) => matches(entry, file))) {
+    problems.push(`${file} has no compiler project owner`);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function compareVersions(a: string, b: string): number {
+  const left = a.split(".").map(Number);
+  const right = b.split(".").map(Number);
+  for (let i = 0; i < 3; i += 1) {
+    const l = left[i] ?? 0;
+    const r = right[i] ?? 0;
+    if (l !== r) {
+      return l < r ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
+function walk(dir: string, prefix: string): string[] {
+  const found: string[] = [];
+  let names: string[];
+  try {
+    names = readdirSync(join(repo, dir));
+  } catch {
+    return found;
+  }
+  for (const name of names) {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) {
+      found.push(...walk(full, `${prefix}${name}/`));
+    } else {
+      found.push(`${prefix}${name}`);
+    }
+  }
+  return found;
 }
 
 function matches(glob: string, file: string): boolean {
-	const pattern = glob
-		.split("**/")
-		.map((segment) =>
-			segment
-				.replace(/[.+^${}()|[\]\\]/g, "\\$&")
-				.replace(/\*/g, "[^/]*")
-				.replace(/\?/g, "."),
-		)
-		.join("(?:[^/]+/)*");
-	return new RegExp(`^${pattern}$`).test(file);
+  const pattern = glob
+    .replace(/\*\*\//g, "GLOBSTAR/")
+    .replace(/\*/g, "[^/]*")
+    .replace(/\?/g, ".")
+    .replace(/GLOBSTAR\//g, "(?:[^/]+/)*");
+  return new RegExp(`^${pattern}$`).test(file);
 }
-
-console.log(`policy conformance (${policyBaselineMeta.release})`);
-for (const line of report) {
-	console.log(`  ${line}`);
-}
-if (problems.length > 0) {
-	for (const problem of problems) {
-		console.error(`  FAIL ${problem}`);
-	}
-	process.exit(1);
-}
-console.log("  OK: configuration, tool floors, coverage, and suppression budget conform.");

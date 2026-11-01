@@ -1,46 +1,65 @@
 /**
- * Recorded policy baseline for `npm run policy:check`. Values come from the Strict Oxlint and Oxfmt
- * Engineering Policy v4.5 the repository adopted; changing them is a policy decision, not a local
- * convenience, so the verifier fails when the effective configuration drifts from this record.
+ * The recorded policy baseline for `npm run policy:check`. The normative configuration lives in the
+ * adopted standard copy (`docs/quality/strict-oxlint-oxfmt-5.1.1.md`); this file records what the
+ * repository itself decides: the recorded allowance, the source-profile mapping, and the tool
+ * versions the configuration was qualified against. Evidence for the allowance lives in
+ * `docs/quality/quality-exceptions.md` and is exercised by `npm run quality:probes`.
  */
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-
-const repo = resolve(import.meta.dirname, "..");
-
-export const policyBaselineMeta = {
-	release: "strict-quality-4.5",
-	version: "4.5",
+export const sourceProfiles = {
+  standard: "Strict Oxlint and Oxfmt Engineering Standard v5.1.1",
+  /** Versions the reference configuration has been checked with (section 5.1). */
+  toolFloors: {
+    oxlint: "1.90.0",
+    "oxlint-tsgolint": "7.0.2005",
+    oxfmt: "0.75.0",
+    "oxc-parser": "0.156.0",
+  },
+  /** Compiler options that must stay enabled project-wide (section 4.2). */
+  requiredCompilerOptions: [
+    "strict",
+    "noImplicitReturns",
+    "noFallthroughCasesInSwitch",
+    "noImplicitOverride",
+    "noUncheckedIndexedAccess",
+    "exactOptionalPropertyTypes",
+    "noUncheckedSideEffectImports",
+    "forceConsistentCasingInFileNames",
+    "allowJs",
+    "checkJs",
+  ],
+  /** Repository inventory mapped to the standard's source profiles (section 4.1). */
+  profiles: [
+    {
+      profile: "production",
+      globs: ["src/**/*.ts", "extensions/**/*.ts", "scripts/**/*.ts"],
+    },
+    {
+      profile: "tests",
+      globs: ["tests/**/*.ts", "tests/**/*.cjs", "tests/**/*.mjs", "tests/**/*.js"],
+    },
+  ],
 } as const;
 
-export const toolFloors: Record<string, string> = {
-	oxlint: "1.90.0",
-	oxfmt: "0.75.0",
-	"oxlint-tsgolint": "7.0.2005",
-	"oxc-parser": "0.156.0",
-};
-
-/** Source globs the toolchain maintains, matching the repository's own scope. */
-export const sourceGlobs: string[] = [
-	"src/**/*.ts",
-	"extensions/**/*.ts",
-	"tests/**/*.ts",
-	"tests/**/*.cjs",
-	"scripts/**/*.ts",
-];
-
-const packageJsonParsed: unknown = JSON.parse(readFileSync(join(repo, "package.json"), "utf8"));
-
-export const packageJson: Record<string, unknown> = isRecord(packageJsonParsed)
-	? packageJsonParsed
-	: {};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null;
-}
-
-/** SHA-256 of the canonical (re-stringified) effective configuration at adoption. */
-export const policyBaselineDigest =
-	"b50b92b47b233641e11da8ef5650620a7e8b169dc99a2e85f1eff279d54a3c34";
-
-export type PackageJson = typeof packageJson;
+/** The node:test registration allowance recorded as QX-001; options do not inherit. */
+export const qualityExceptions = [
+  {
+    id: "QX-001",
+    rule: "typescript/no-floating-promises",
+    options: [
+      "error",
+      {
+        checkThenables: true,
+        ignoreIIFE: false,
+        ignoreVoid: false,
+        allowForKnownSafeCalls: [
+          {
+            from: "package",
+            package: "@types/node",
+            name: ["nodeTest", "nodeIt", "nodeDescribe", "nodeSuite"],
+          },
+        ],
+        allowForKnownSafePromises: [],
+      },
+    ],
+  },
+] as const;
