@@ -10,7 +10,7 @@
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { test as nodeTest } from "node:test";
 
@@ -95,6 +95,27 @@ const CONTROLS: Control[] = [
     expect: 0,
     source:
       "function forward(reason: unknown): Promise<void> {\n\treturn Promise.reject(reason);\n}\nawait forward(new Error(1));\n",
+  },
+  {
+    file: "async-callback.ts",
+    rule: "no-misused-promises",
+    expect: 1,
+    source:
+      "function run(callback: () => void): void {\n\tcallback();\n}\nrun(async () => {\n\tawait Promise.resolve();\n});\n",
+  },
+  {
+    file: "reject-invalid.ts",
+    rule: "prefer-promise-reject-errors",
+    expect: 1,
+    source:
+      'async function fail(): Promise<unknown> {\n\treturn Promise.reject("a literal string");\n}\nawait fail().catch(() => {});\n',
+  },
+  {
+    file: "unsafe-assertion.ts",
+    rule: "no-unsafe-type-assertion",
+    expect: 1,
+    source:
+      "const broad: Record<string, unknown> = { kept: 1 };\nconst narrow = broad as { kept: number };\nconsole.log(narrow);\n",
   },
   // Structural profiles: production limits, each with its boundary value.
   {
@@ -302,6 +323,8 @@ nodeTest(
   },
 );
 
+const controlDir = join(probes, "gate-controls");
+
 function skipPlatform(): boolean {
   const skip = process.platform.startsWith("android");
   if (skip) {
@@ -309,3 +332,187 @@ function skipPlatform(): boolean {
   }
   return skip;
 }
+
+function bin(name: string): string {
+  return join(repo, "node_modules", ".bin", name);
+}
+
+function gate(command: string[]): { code: number | null; output: string } {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  const result = spawnSync(command[0] ?? "", command.slice(1), {
+    cwd: repo,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    env,
+    timeout: 120_000,
+  });
+  return { code: result.status, output: `${result.stdout}${result.stderr}` };
+}
+
+const CONTROL_FILES: Array<{ name: string; source: string; expect: string }> = [
+  {
+    name: "compiler-error.ts",
+    source: 'export const value: number = "text";\nconsole.log(value);\n',
+    expect: "compiler-error.ts",
+  },
+  {
+    name: "checked-js.cjs",
+    source: '/** @type {number} */\nconst amount = "text";\nmodule.exports = { amount };\n',
+    expect: "checked-js.cjs",
+  },
+  {
+    name: "declaration-error.d.ts",
+    source: "export declare const declaredValue: number;\n",
+    expect: "declaration-consumer.ts",
+  },
+  {
+    name: "declaration-consumer.ts",
+    source:
+      'import { declaredValue } from "./declaration-error.js";\n\nconst used: string = declaredValue;\nconsole.log(used);\n',
+    expect: "declaration-consumer.ts",
+  },
+];
+
+nodeTest("gate-level controls fail and pass their real gates", () => {
+  if (skipPlatform()) {
+    return;
+  }
+  mkdirSync(controlDir, { recursive: true });
+  try {
+    for (const control of CONTROL_FILES) {
+      writeFileSync(join(controlDir, control.name), control.source);
+    }
+    const compiler = gate([bin("tsc"), "--noEmit"]);
+    assert.notEqual(compiler.code, 0, "the compiler gate must fail on the generated controls");
+    for (const control of CONTROL_FILES) {
+      assert.match(
+        compiler.output,
+        new RegExp(control.expect),
+        `the compiler must report ${control.expect}`,
+      );
+    }
+    for (const control of CONTROL_FILES) {
+      rmSync(join(controlDir, control.name));
+    }
+    assert.equal(
+      gate([bin("tsc"), "--noEmit"]).code,
+      0,
+      "the compiler gate must be clean once controls are removed",
+    );
+  } finally {
+    rmSync(controlDir, { recursive: true, force: true });
+  }
+
+  mkdirSync(controlDir, { recursive: true });
+  try {
+    writeFileSync(join(controlDir, "misformatted.ts"), "export const  value = {\n    a:1,\n}\n");
+    const misformatted = gate([bin("oxfmt"), "--check", "."]);
+    assert.notEqual(
+      misformatted.code,
+      0,
+      "a misformatted maintained source must fail the real format gate",
+    );
+    assert.match(misformatted.output, /misformatted/);
+    gate([bin("oxfmt"), "--write", "."]);
+    assert.equal(gate([bin("oxfmt"), "--check", "."]).code, 0, "formatting must converge");
+    gate([bin("oxfmt"), "--write", "."]);
+    assert.equal(
+      gate([bin("oxfmt"), "--check", "."]).code,
+      0,
+      "repeated formatting must be stable",
+    );
+
+    writeFileSync(join(controlDir, "misformatted.ts"), "export const  value = {\n    a:1,\n}\n");
+    const aggregate = gate([
+      process.execPath,
+      "scripts/run-gates.ts",
+      "policy:check",
+      "format:check",
+    ]);
+    assert.notEqual(aggregate.code, 0, "the aggregate must fail when a gate fails");
+    assert.match(
+      aggregate.output,
+      /pass: policy:check/,
+      "the passing gate must still run and be reported",
+    );
+    assert.match(aggregate.output, /fail \(\d+\): format:check/);
+  } finally {
+    rmSync(controlDir, { recursive: true, force: true });
+  }
+
+  mkdirSync(controlDir, { recursive: true });
+  const toolsDir = join(repo, "tools");
+  try {
+    mkdirSync(toolsDir, { recursive: true });
+    writeFileSync(join(toolsDir, "control-probe.ts"), "export const probeValue = 1;\n");
+    const orphan = gate([process.execPath, "scripts/check-policy.ts"]);
+    assert.notEqual(
+      orphan.code,
+      0,
+      "a maintained source without a compiler owner must fail verification",
+    );
+    assert.match(orphan.output, /tools\/control-probe\.ts/);
+    rmSync(join(toolsDir, "control-probe.ts"));
+    rmSync(toolsDir, { recursive: true, force: true });
+
+    writeFileSync(
+      join(controlDir, "copied-directive.ts"),
+      "// oxlint-disable-next-line no-var -- QX-001: selector copied from the exception record.\nvar carried = 1;\nconsole.log(carried);\n",
+    );
+    const directive = gate([process.execPath, "scripts/check-policy.ts"]);
+    assert.notEqual(directive.code, 0, "an unauthorized directive must fail verification");
+    assert.match(directive.output, /copied-directive\.ts/);
+    rmSync(join(controlDir, "copied-directive.ts"));
+    assert.equal(
+      gate([process.execPath, "scripts/check-policy.ts"]).code,
+      0,
+      "verification is clean once the copied directive is gone",
+    );
+
+    const parsed: unknown = JSON.parse(readFileSync(join(repo, ".oxlintrc.json"), "utf8"));
+    const downgraded = structuredClone(isRecord(parsed) ? parsed : {});
+    if (isRecord(downgraded["rules"])) {
+      downgraded["rules"]["no-var"] = "off";
+    }
+    writeFileSync(join(controlDir, "downgraded.json"), JSON.stringify(downgraded));
+    const integrity = gate([
+      process.execPath,
+      "scripts/check-policy.ts",
+      "--lint-config",
+      join("tests", "probes", "gate-controls", "downgraded.json"),
+    ]);
+    assert.notEqual(integrity.code, 0, "a representative policy downgrade must fail verification");
+    assert.match(integrity.output, /baseline/);
+  } finally {
+    rmSync(controlDir, { recursive: true, force: true });
+  }
+});
+
+nodeTest("a genuinely failing assertion fails its run and a valid assertion passes", () => {
+  mkdirSync(controlDir, { recursive: true });
+  try {
+    writeFileSync(
+      join(controlDir, "failing-assertion.test.ts"),
+      'import assert from "node:assert/strict";\nimport { test as nodeTest } from "node:test";\n\nnodeTest("control fails on purpose", () => {\n\tassert.equal(1, 2);\n});\n',
+    );
+    writeFileSync(
+      join(controlDir, "valid-assertion.test.ts"),
+      'import assert from "node:assert/strict";\nimport { test as nodeTest } from "node:test";\n\nnodeTest("valid counterpart passes", () => {\n\tassert.equal(1, 1);\n});\n',
+    );
+    const failing = gate([
+      process.execPath,
+      join("tests", "probes", "gate-controls", "failing-assertion.test.ts"),
+    ]);
+    assert.notEqual(failing.code, 0, "a real failed assertion must fail the run");
+    assert.match(failing.output, /control fails on purpose/);
+    assert.equal(
+      gate([process.execPath, join("tests", "probes", "gate-controls", "valid-assertion.test.ts")])
+        .code,
+      0,
+      "the valid counterpart must pass",
+    );
+  } finally {
+    rmSync(controlDir, { recursive: true, force: true });
+  }
+});
