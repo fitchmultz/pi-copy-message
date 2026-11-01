@@ -9,10 +9,24 @@
     "noEmit": true,
     "strict": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": ["node"],
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedSideEffectImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noCheck": false,
+    "allowJs": true,
+    "checkJs": true
   },
   "include": [
     "extensions/**/*.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "tests/**/*.js",
+    "tests/**/*.cjs",
+    "tests/**/*.mjs",
+    "scripts/**/*.ts"
   ]
 }
