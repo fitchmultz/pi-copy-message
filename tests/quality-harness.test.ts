@@ -10,7 +10,7 @@
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { test as nodeTest } from "node:test";
 
@@ -269,6 +269,14 @@ function countFor(diagnostics: unknown[], file: string): string[] {
 }
 
 nodeTest("committed diagnostic inputs produce exactly their recorded diagnostics", () => {
+  const onDisk = readdirSync(probes)
+    .filter((name) => name.endsWith(".test.ts") || name === "helper.ts")
+    .sort();
+  assert.deepEqual(
+    onDisk,
+    Object.keys(COMMITTED).sort(),
+    "every diagnostic input must be recorded in this harness",
+  );
   if (skipPlatform()) {
     return;
   }
