@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 4.0.2 - 2026-11-01
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- Automate reviewed npm patch releases (#46) ([4fd1e2f](https://github.com/fitchmultz/pi-copy-message/commit/4fd1e2f468eed1f84a929602dd9553aa2515ca3b))
+
+### What's Changed
+* Automate reviewed npm patch releases by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/46
+
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.1...v4.0.2
+
 ## 4.0.1 - 2026-10-31
 
 - Stop enumerating graphemes once a message preview is known to need truncation; preserve preview and copied text.
