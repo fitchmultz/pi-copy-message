@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refresh the local runtime pins to the latest in their lines: `.nvmrc` moves to Node 24.22.2 and `packageManager` to npm 12.2.1; CI already resolves both. The Node 24.15 engines floor is unchanged.
+
 ## 4.0.5 - 2026-11-01
 
 <!-- npm-release:unreleased:start -->

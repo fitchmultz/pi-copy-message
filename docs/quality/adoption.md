@@ -13,7 +13,7 @@ depart from the standard's own values are recorded in [quality-exceptions.md](qu
 
 ## Runtimes and package manager
 
-- Node.js 24 line (`.nvmrc` pins 24.21.0); `package.json` pins `npm@12.2.0` as the package manager.
+- Node.js 24 line (`.nvmrc` pins 24.22.2); `package.json` pins `npm@12.2.1` as the package manager.
 - Install uses the public npm registry only, and the lockfile reflects it.
 - Pi runtime targets: the official `pi-coding-agent` 1.4.0 release and the fork release this repository is
   developed against; both are dev dependencies at the versions listed below.
