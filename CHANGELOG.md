@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 4.0.9 - 2026-11-02
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- Raise the Pi floor to 1.5.0 (#59) ([f77e94c](https://github.com/fitchmultz/pi-copy-message/commit/f77e94c10e651d77ca5489c7dd4d4effc8fab1ae))
+
+### What's Changed
+
+- Raise the Pi floor to 1.5.0 by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/59
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.8...v4.0.9
+
 ## 4.0.8 - 2026-11-02
 
 <!-- npm-release:unreleased:start -->
