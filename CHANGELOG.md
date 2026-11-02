@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 4.0.7 - 2026-11-02
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- chore: refresh local runtime pins to Node 24.22.2 and npm 12.2.1 (#53) ([33f7afb](https://github.com/fitchmultz/pi-copy-message/commit/33f7afbe23d97dc72049cdea431db58742053732))
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.6...v4.0.7
+
 ## 4.0.6 - 2026-11-02
 
 <!-- npm-release:unreleased:start -->
