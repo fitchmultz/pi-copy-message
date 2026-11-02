@@ -10,7 +10,7 @@
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { test as nodeTest } from "node:test";
 
@@ -330,6 +330,8 @@ nodeTest(
 );
 
 const controlDir = join(probes, "gate-controls");
+/** The same directory relative to the repo root, for gate invocations scoped to scratch space. */
+const controlRelative = join("tests", "probes", "gate-controls");
 
 function skipPlatform(): boolean {
   const skip = process.platform.startsWith("android");
@@ -413,18 +415,22 @@ nodeTest("gate-level controls fail and pass their real gates", () => {
   mkdirSync(controlDir, { recursive: true });
   try {
     writeFileSync(join(controlDir, "misformatted.ts"), "export const  value = {\n    a:1,\n}\n");
-    const misformatted = gate([bin("oxfmt"), "--check", "."]);
+    const misformatted = gate([bin("oxfmt"), "--check", controlRelative]);
     assert.notEqual(
       misformatted.code,
       0,
       "a misformatted maintained source must fail the real format gate",
     );
     assert.match(misformatted.output, /misformatted/);
-    gate([bin("oxfmt"), "--write", "."]);
-    assert.equal(gate([bin("oxfmt"), "--check", "."]).code, 0, "formatting must converge");
-    gate([bin("oxfmt"), "--write", "."]);
+    gate([bin("oxfmt"), "--write", controlRelative]);
     assert.equal(
-      gate([bin("oxfmt"), "--check", "."]).code,
+      gate([bin("oxfmt"), "--check", controlRelative]).code,
+      0,
+      "formatting must converge",
+    );
+    gate([bin("oxfmt"), "--write", controlRelative]);
+    assert.equal(
+      gate([bin("oxfmt"), "--check", controlRelative]).code,
       0,
       "repeated formatting must be stable",
     );
@@ -449,18 +455,22 @@ nodeTest("gate-level controls fail and pass their real gates", () => {
 
   mkdirSync(controlDir, { recursive: true });
   const toolsDir = join(repo, "tools");
+  const toolsExisted = existsSync(toolsDir);
+  const orphanDir = join(toolsDir, `orphan-control-${process.pid}`);
   try {
-    mkdirSync(toolsDir, { recursive: true });
-    writeFileSync(join(toolsDir, "control-probe.ts"), "export const probeValue = 1;\n");
+    mkdirSync(orphanDir, { recursive: true });
+    writeFileSync(join(orphanDir, "control-probe.ts"), "export const probeValue = 1;\n");
     const orphan = gate([process.execPath, "scripts/check-policy.ts"]);
     assert.notEqual(
       orphan.code,
       0,
       "a maintained source without a compiler owner must fail verification",
     );
-    assert.match(orphan.output, /tools\/control-probe\.ts/);
-    rmSync(join(toolsDir, "control-probe.ts"));
-    rmSync(toolsDir, { recursive: true, force: true });
+    assert.match(orphan.output, /tools\/[^\s]*control-probe\.ts/);
+    rmSync(orphanDir, { recursive: true, force: true });
+    if (!toolsExisted) {
+      rmSync(toolsDir, { recursive: true, force: true });
+    }
 
     writeFileSync(
       join(controlDir, "copied-directive.ts"),
@@ -491,6 +501,10 @@ nodeTest("gate-level controls fail and pass their real gates", () => {
     assert.notEqual(integrity.code, 0, "a representative policy downgrade must fail verification");
     assert.match(integrity.output, /baseline/);
   } finally {
+    rmSync(orphanDir, { recursive: true, force: true });
+    if (!toolsExisted) {
+      rmSync(toolsDir, { recursive: true, force: true });
+    }
     rmSync(controlDir, { recursive: true, force: true });
   }
 });
