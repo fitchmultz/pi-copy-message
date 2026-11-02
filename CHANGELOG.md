@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 4.0.8 - 2026-11-02
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- Scope the qualification harness's format and orphan controls to scratch space (#57) ([d39ca32](https://github.com/fitchmultz/pi-copy-message/commit/d39ca32ffb1221273f1637accb0a0a7624e95da8))
+
+### What's Changed
+
+- Scope the qualification harness's format and orphan controls to scratch space by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/57
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.7...v4.0.8
+
 ## 4.0.7 - 2026-11-02
 
 <!-- npm-release:unreleased:start -->
