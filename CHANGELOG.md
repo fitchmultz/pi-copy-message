@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Correct the policy reference in `docs/development.md`: the repository follows the adopted Strict Oxlint and Oxfmt Engineering Standard v5.1.2, not the superseded policy release.
+
 ## 4.0.5 - 2026-11-01
 
 <!-- npm-release:unreleased:start -->
