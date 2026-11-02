@@ -88,7 +88,7 @@ Set repository variable `NPM_RELEASE_ENABLED` to anything other than `true` to s
 
 ## Lint, format, and policy conformance
 
-The repository follows the Strict Oxlint and Oxfmt Engineering Policy (release `strict-quality-4.5`).
+The repository follows the Strict Oxlint and Oxfmt Engineering Standard v5.1.2; the adopted copy in [`docs/quality/strict-oxlint-oxfmt-5.1.2.md`](quality/strict-oxlint-oxfmt-5.1.2.md) is the authoritative statement.
 
 | Tool                        | Floor           | Role                                                                            |
 | --------------------------- | --------------- | ------------------------------------------------------------------------------- |
