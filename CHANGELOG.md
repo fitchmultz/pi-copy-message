@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 4.0.10 - 2026-11-02
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- Recheck unreported Cursor reviews in automatic releases (#61) ([ba70728](https://github.com/fitchmultz/pi-copy-message/commit/ba70728f6337906a62eeac8ea73d78e6a4226569))
+
+### What's Changed
+
+- Recheck unreported Cursor reviews in automatic releases by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/61
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.9...v4.0.10
+
 ## 4.0.9 - 2026-11-02
 
 <!-- npm-release:unreleased:start -->
