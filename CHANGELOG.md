@@ -7,6 +7,7 @@
 <!-- npm-release:unreleased:start -->
 
 - Correct the policy reference in `docs/development.md`: the repository follows the adopted Strict Oxlint and Oxfmt Engineering Standard v5.1.2, not the superseded policy release.
+- Refresh the local runtime pins to the latest in their lines: `.nvmrc` moves to Node 24.22.2 and `packageManager` to npm 12.2.1; CI already resolves both. The Node 24.15 engines floor is unchanged.
 
 <!-- npm-release:unreleased:end -->
 
