@@ -2,7 +2,21 @@
 
 ## Unreleased
 
+## 4.0.6 - 2026-11-02
+
+<!-- npm-release:unreleased:start -->
+
 - Correct the policy reference in `docs/development.md`: the repository follows the adopted Strict Oxlint and Oxfmt Engineering Standard v5.1.2, not the superseded policy release.
+
+<!-- npm-release:unreleased:end -->
+
+- docs: reference the adopted quality standard v5.1.2 (#54) ([a31c4c2](https://github.com/fitchmultz/pi-copy-message/commit/a31c4c26da4ecc69bce9a1e0b4702572319cc9df))
+
+### What's Changed
+
+- docs: reference the adopted quality standard v5.1.2 by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/54
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.5...v4.0.6
 
 ## 4.0.5 - 2026-11-01
 
