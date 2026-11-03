@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 4.0.11 - 2026-11-03
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- Skip no-op releases and restate malformed remediation dispositions (#64) ([f98648d](https://github.com/fitchmultz/pi-copy-message/commit/f98648dda732add150f4fab8157967e64f0e316d))
+
+### What's Changed
+
+- Skip no-op releases and restate malformed remediation dispositions by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/64
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.10...v4.0.11
+
 ## 4.0.10 - 2026-11-02
 
 <!-- npm-release:unreleased:start -->
