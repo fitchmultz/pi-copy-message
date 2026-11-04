@@ -113,7 +113,12 @@ export async function copySelectedMessage(
   try {
     await copyToClipboard(text);
     const actual = await readCopiedText(text);
-    if (actual !== text) {
+    if (actual === undefined && process.env.TERMUX_VERSION !== undefined) {
+      notify(
+        `Sent ${roleLabel(selected.role)} message to terminal clipboard; paste to verify.`,
+        "info",
+      );
+    } else if (actual !== text) {
       notify("Clipboard command completed, but delivery could not be verified.", "warning");
     } else if (remoteSession()) {
       notify(

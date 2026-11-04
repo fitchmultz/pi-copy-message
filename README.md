@@ -57,7 +57,9 @@ The picker requires interactive TUI mode. Direct commands also work outside TUI 
 
 The extension uses Pi's clipboard support and OSC 52 fallback. It reports “Copied” only after local clipboard readback matches the copied text.
 
-Unverified delivery produces a warning. A failed write produces an error.
+On Termux, unavailable readback produces "Sent … to terminal clipboard; paste to verify." Termux Fold can receive clipboard writes without the optional Termux:API app needed for readback. Keep Termux visible and use its **Paste** action to check delivery.
+
+Empty or mismatched readback still produces a warning. Unavailable readback on other platforms also warns. A failed write produces an error.
 
 The extension cannot verify remote terminal delivery. Paste into a local editor to check delivery.
 

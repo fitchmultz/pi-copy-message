@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Report completed Termux clipboard sends without a warning when optional clipboard readback is unavailable. Verified copies, mismatches, and write failures keep their existing results.
+
 ## 4.0.11 - 2026-11-03
 
 <!-- npm-release:unreleased:start -->

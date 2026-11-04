@@ -75,8 +75,10 @@ The picker coalesces legacy in-progress assistant snapshots within their context
 
 Previews and copy notifications remove terminal control characters for safe display. Copied text stays raw, preserving stored text and newlines. Image and other non-text content blocks are not copied.
 
-The extension keeps Pi's native/platform clipboard writes and OSC 52 fallback. It reports success only after reading back matching local clipboard text. The success notification includes the role and a short preview. Unavailable, empty, or mismatched readback warns; rejected writes report an error. Remote terminal delivery via OSC 52 cannot be verified, even when the remote machine's local clipboard matches.
+The extension keeps Pi's native/platform clipboard writes and OSC 52 fallback. It reports "Copied" only after reading back matching local clipboard text. The success notification includes the role and a short preview. Empty or mismatched readback warns; rejected writes report an error. Remote terminal delivery via OSC 52 cannot be verified, even when the remote machine's local clipboard matches.
 
 Native clipboard reads are preferred where available on macOS and Windows. Platform command readers are bounded by a three-second timeout and preserve exact text, including newlines. Readers include `pbpaste`, PowerShell, `termux-clipboard-get`, `wl-paste`, `xclip`, and `xsel`, selected for the platform and environment. The extension does not replace Pi's working write fallback chain.
 
-Android/Termux writes use Pi's normal fallback chain, including OSC 52 when native clipboard commands are unavailable. Actual Android/Termux, Windows/WSL, and remote terminal delivery require platform qualification beyond the isolated native test fixtures.
+On Termux, a completed write with unavailable readback reports "Sent … to terminal clipboard; paste to verify" as information, not a warning. OSC 52 writes and Termux:API reads are separate capabilities. The optional Termux:API app is not required for Termux Fold to receive OSC 52 writes. Matching readback still reports "Copied"; empty or mismatched readback still warns. Unavailable readback on other platforms warns.
+
+Android/Termux writes use the selected Pi host's normal fallback chain. The maintained fork supports OSC 52 when native clipboard commands are unavailable; official Pi 1.5.0 requires a working Termux clipboard command. Keep Termux visible during a terminal clipboard write. Use Termux's **Paste** action to check delivery, rather than an Android keyboard's cached clipboard suggestion.

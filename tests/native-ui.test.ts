@@ -351,6 +351,30 @@ nodeTest(
       );
 
       await t.test(
+        "Termux without clipboard readback reports a terminal send, not a failed copy",
+        async () => {
+          process.env.TERMUX_VERSION = "0.119.0-fold.12";
+          try {
+            state({ read: "unavailable" });
+            await runtime.session.prompt("/copy-user");
+            assert.equal(clipboard().text, "Stored user 界🙂\nsecond line\n");
+            assert.equal(lastNote().type, "info");
+            assert.match(
+              lastNote().text,
+              /Sent user message to terminal clipboard.*paste to verify/,
+            );
+            assert.doesNotMatch(lastNote().text, /^Copied /);
+
+            state({ write: "false", text: "other" });
+            await runtime.session.prompt("/copy-user");
+            assert.equal(lastNote().type, "warning");
+          } finally {
+            delete process.env.TERMUX_VERSION;
+          }
+        },
+      );
+
+      await t.test(
         "false writes, empty/unavailable/error reads and remote delivery never claim verified success",
         async () => {
           for (const value of [
