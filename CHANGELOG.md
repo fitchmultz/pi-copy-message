@@ -2,7 +2,21 @@
 
 ## Unreleased
 
+## 4.0.12 - 2026-11-04
+
+<!-- npm-release:unreleased:start -->
+
 - Report completed Termux clipboard sends without a warning when optional clipboard readback is unavailable. Verified copies, mismatches, and write failures keep their existing results.
+
+<!-- npm-release:unreleased:end -->
+
+- fix: distinguish Termux clipboard sends from unavailable readback (#66) ([e2e6de8](https://github.com/fitchmultz/pi-copy-message/commit/e2e6de8be3671096cd86579b7adcb7d758e66ea6))
+
+### What's Changed
+
+- Fix misleading Termux clipboard warnings by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/66
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.11...v4.0.12
 
 ## 4.0.11 - 2026-11-03
 
