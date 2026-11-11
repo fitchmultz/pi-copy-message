@@ -22,13 +22,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PI_AUTOMATION_REF: 9b08d65d70a01c74c4e01477ccf9473e86be33ee # main
+  PI_AUTOMATION_REF: f407404914bf6d048e4d952c62711df5103cc7ef # main
 
 jobs:
   resolve:
-    uses: fitchmultz/.github/.github/workflows/resolve-hosts.yml@9b08d65d70a01c74c4e01477ccf9473e86be33ee # main
+    uses: fitchmultz/.github/.github/workflows/resolve-hosts.yml@f407404914bf6d048e4d952c62711df5103cc7ef # main
     with:
-      automation-ref: 9b08d65d70a01c74c4e01477ccf9473e86be33ee # main
+      automation-ref: f407404914bf6d048e4d952c62711df5103cc7ef # main
       official-version: ${{ inputs.official-version }}
       fork-ref: ${{ inputs.fork-ref }}
 
@@ -86,6 +86,7 @@ jobs:
         run: npm install --global "$(node -p 'require("./extension/package.json").packageManager')"
       - name: Qualify official Pi
         env:
+          GH_TOKEN: ${{ github.token }}
           OFFICIAL_VERSION: ${{ needs.resolve.outputs.official-version }}
         run: |
           node automation/scripts/qualify.mjs --repo pi-copy-message --source "$GITHUB_WORKSPACE/extension" \
