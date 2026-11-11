@@ -86,6 +86,7 @@ jobs:
         run: npm install --global "$(node -p 'require("./extension/package.json").packageManager')"
       - name: Qualify official Pi
         env:
+          GH_TOKEN: ${{ github.token }}
           OFFICIAL_VERSION: ${{ needs.resolve.outputs.official-version }}
         run: |
           node automation/scripts/qualify.mjs --repo pi-copy-message --source "$GITHUB_WORKSPACE/extension" \
