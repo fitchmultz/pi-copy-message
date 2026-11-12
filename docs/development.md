@@ -28,7 +28,7 @@ npm run quality:probes # qualification harness: each diagnostic input must behav
 
 ## Local checks
 
-Requires Node.js `>=24.15.0`; `.nvmrc` pins Node 24.22.2. The npm version is declared in `package.json`.
+Requires Node.js `>=24.22.3 <25 || >=26.13.1`; `.nvmrc` pins Node 24.22.3. The npm version is declared in `package.json`.
 
 ```bash
 npm ci
