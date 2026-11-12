@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 4.0.13 - 2026-11-12
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- Wake the version workflow only for release events and drop the duplicate main CI run (#68) ([8f80759](https://github.com/fitchmultz/pi-copy-message/commit/8f80759bcd9b3d996f560957427d55023795c38a))
+
+### What's Changed
+
+- Wake the version workflow only for release events and drop the duplicate main CI run by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/68
+- ci: align shared automation pins and wire release supersession inputs by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/69
+- chore: require patched Node.js security releases by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/70
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.12...v4.0.13
+
 ## 4.0.12 - 2026-11-04
 
 <!-- npm-release:unreleased:start -->
