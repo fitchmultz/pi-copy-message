@@ -45,7 +45,7 @@ Use `/reload` after updating extension code on current official Pi and the maint
 
 No production build or `prepare` is required. Tests run TypeScript directly with Node's type stripping, so source must stay erasable (`erasableSyntaxOnly`).
 
-Tests cover formatting, native command execution, canonical context and branch selection, both TUI modes, pointer focus, and pending-picker disposal. Native addon interception and an isolated command PATH keep clipboard writes in temporary fixture files, never the operator clipboard. Actual Android/Termux, Windows/WSL, and remote terminal delivery still require platform qualification.
+Tests cover formatting, native command execution, canonical context and branch selection, both TUI modes, pointer focus, and pending-picker disposal. Native addon interception and an isolated command PATH keep clipboard writes in temporary fixture files, never the operator clipboard. Actual Android/Termux and remote terminal delivery still require platform qualification.
 
 Completion cases belong to registered command hooks. Filter/search and copy-format cases belong to the picker and native delivery, rather than duplicate private-helper tests.
 
