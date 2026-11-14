@@ -70,9 +70,13 @@ nodeTest("previews strip terminal control sequences", () => {
   const state = new CopyMessagePickerState([copyableMessage("a0", "assistant", text, 0)]);
 
   assert.equal(state.selectedCopyText(), text);
-  assert.doesNotMatch(state.render(120, plainTheme).join("\n"), /\x1b/);
+  const renderedList = state.render(120, plainTheme).join("\n");
+  assert.doesNotMatch(renderedList, /\x1b|aW5qZWN0ZWQ=/);
+  assert.match(renderedList, /Before after/);
   state.handleInput("\t");
-  assert.doesNotMatch(state.render(120, plainTheme).join("\n"), /\x1b/);
+  const renderedPeek = state.render(120, plainTheme).join("\n");
+  assert.doesNotMatch(renderedPeek, /\x1b|aW5qZWN0ZWQ=/);
+  assert.match(renderedPeek, /Before after/);
 
   const unknownRole = `unrecognized\r${clipboardWrite}`;
   const messages = collectCopyableMessages({

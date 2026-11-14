@@ -151,6 +151,7 @@ nodeTest(
       "SSH_CONNECTION",
       "SSH_CLIENT",
       "MOSH_CONNECTION",
+      "PI_CLIPBOARD_OSC52",
       "DISPLAY",
       "WAYLAND_DISPLAY",
       "TERMUX_VERSION",
