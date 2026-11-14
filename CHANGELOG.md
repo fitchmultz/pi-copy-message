@@ -2,7 +2,22 @@
 
 ## Unreleased
 
+## 4.0.14 - 2026-11-14
+
+<!-- npm-release:unreleased:start -->
+
 - Require Pi 1.5.2 or later and strip full terminal escape sequences from picker rows, peek previews, and copy notifications instead of leaving escape payloads visible.
+
+<!-- npm-release:unreleased:end -->
+
+- Remove Windows qualification and support claims (#72) ([d1121fc](https://github.com/fitchmultz/pi-copy-message/commit/d1121fcdf73603210854f15af19e3c7e8bb6133d))
+
+### What's Changed
+
+- Remove Windows qualification and support claims by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/72
+- Raise the Pi floor to 1.5.2 and strip full terminal sequences in previews by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/73
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.13...v4.0.14
 
 ## 4.0.13 - 2026-11-12
 
