@@ -4,23 +4,26 @@
  * blocks, permits only the recorded quality allowance, requires compiler membership for every
  * maintained source, and fails on any suppression directive.
  */
-import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { hash } from "node:crypto";
+import { globSync, readFileSync } from "node:fs";
+import { join, posix, resolve } from "node:path";
+import { parseArgs } from "node:util";
 import { parseSync } from "oxc-parser";
 
 import { qualityExceptions, sourceProfiles } from "./policy-baseline.ts";
 
 const repo = resolve(import.meta.dirname, "..");
-const cliArgs = process.argv.slice(2);
-const lintConfigPath = cliValue("--lint-config") ?? ".oxlintrc.json";
-const formatConfigPath = cliValue("--format-config") ?? ".oxfmtrc.json";
-
-/** Optional override so the qualification harness can verify drift detection against a mutated copy. */
-function cliValue(flag: string): string | undefined {
-  const index = cliArgs.indexOf(flag);
-  return index === -1 ? undefined : cliArgs[index + 1];
-}
+const { values: cliValues } = parseArgs({
+  options: {
+    "lint-config": { type: "string" },
+    "format-config": { type: "string" },
+  },
+  strict: false,
+});
+const lintConfigPath =
+  typeof cliValues["lint-config"] === "string" ? cliValues["lint-config"] : ".oxlintrc.json";
+const formatConfigPath =
+  typeof cliValues["format-config"] === "string" ? cliValues["format-config"] : ".oxfmtrc.json";
 const guidePath = join(repo, "docs/quality/strict-oxlint-oxfmt-5.1.2.md");
 const problems: string[] = [];
 const report: string[] = [];
@@ -80,11 +83,8 @@ const include: string[] = Array.isArray(compilerProject.include)
 const maintained: string[] = [];
 const globs = sourceProfiles.profiles.flatMap((profile) => [...profile.globs]);
 for (const glob of globs) {
-  const root = glob.split("/")[0] ?? "";
-  for (const file of walk(root, `${root}/`)) {
-    if (matches(glob, file)) {
-      recordMaintainedSource(file);
-    }
+  for (const file of globSync(glob, { cwd: repo }).map((entry) => entry.replaceAll("\\", "/"))) {
+    recordMaintainedSource(file);
   }
 }
 
@@ -144,7 +144,7 @@ function isFormatBlock(value: unknown): value is Record<string, unknown> {
 }
 
 function digest(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 16);
+  return hash("sha256", JSON.stringify(value), "hex").slice(0, 16);
 }
 
 function same(a: unknown, b: unknown): boolean {
@@ -161,7 +161,7 @@ function recordMaintainedSource(file: string): void {
     return;
   }
   maintained.push(file);
-  if (!include.some((entry) => matches(entry, file))) {
+  if (!include.some((entry) => posix.matchesGlob(file, entry))) {
     problems.push(`${file} has no compiler project owner`);
   }
 }
@@ -181,32 +181,4 @@ function compareVersions(a: string, b: string): number {
     }
   }
   return 0;
-}
-
-function walk(dir: string, prefix: string): string[] {
-  const found: string[] = [];
-  let names: string[];
-  try {
-    names = readdirSync(join(repo, dir));
-  } catch {
-    return found;
-  }
-  for (const name of names) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) {
-      found.push(...walk(full, `${prefix}${name}/`));
-    } else {
-      found.push(`${prefix}${name}`);
-    }
-  }
-  return found;
-}
-
-function matches(glob: string, file: string): boolean {
-  const pattern = glob
-    .replace(/\*\*\//g, "GLOBSTAR/")
-    .replace(/\*/g, "[^/]*")
-    .replace(/\?/g, ".")
-    .replace(/GLOBSTAR\//g, "(?:[^/]+/)*");
-  return new RegExp(`^${pattern}$`).test(file);
 }

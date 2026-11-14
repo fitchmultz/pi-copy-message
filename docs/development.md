@@ -66,7 +66,7 @@ npm ci
 
 ## Host compatibility and qualification
 
-The support floor is Pi 1.5.0. CI and standalone/packed qualification use the latest stable official Pi and latest maintained fork `main`, resolving each version/commit once per workflow run and retaining exact SDK/CLI evidence. Locked development dependencies are reproducible snapshots, not qualification targets; the support floor does not make fork qualification optional.
+The support floor is Pi 1.5.2. CI and standalone/packed qualification use the latest stable official Pi and latest maintained fork `main`, resolving each version/commit once per workflow run and retaining exact SDK/CLI evidence. Locked development dependencies are reproducible snapshots, not qualification targets; the support floor does not make fork qualification optional.
 
 This package keeps Pi core packages as wildcard peers (`*`) per [Pi package guidance](https://github.com/earendil-works/pi-mono/blob/main/packages/coding-agent/docs/packages.md). Pi aliases these imports to its bundled copies when loading the extension, so the package does not bundle or shadow Pi core. Local development uses `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` as dev dependencies for typechecking and tests.
 

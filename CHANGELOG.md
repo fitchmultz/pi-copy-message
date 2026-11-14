@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Require Pi 1.5.2 or later and strip full terminal escape sequences from picker rows, peek previews, and copy notifications instead of leaving escape payloads visible.
+
 ## 4.0.13 - 2026-11-12
 
 <!-- npm-release:unreleased:start -->
