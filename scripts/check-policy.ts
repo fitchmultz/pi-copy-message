@@ -9,6 +9,7 @@ import { globSync, readFileSync } from "node:fs";
 import { join, posix, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parseSync } from "oxc-parser";
+import { lt as semverLt, valid as semverValid } from "semver";
 
 import { qualityExceptions, sourceProfiles } from "./policy-baseline.ts";
 
@@ -63,8 +64,11 @@ for (const [name, floor] of Object.entries(sourceProfiles.toolFloors)) {
   const declared = isRecord(devDependencies) ? devDependencies[name] : undefined;
   if (typeof declared !== "string") {
     problems.push(`${name} is not a dev dependency`);
-  } else if (compareVersions(declared.replace(/^[^0-9]*/, ""), floor) < 0) {
-    problems.push(`${name} ${declared} is below the qualified version ${floor}`);
+  } else {
+    const cleaned = semverValid(declared.replace(/^[^0-9]*/, ""));
+    if (cleaned === null || semverLt(cleaned, floor)) {
+      problems.push(`${name} ${declared} is below the qualified version ${floor}`);
+    }
   }
 }
 
@@ -168,17 +172,4 @@ function recordMaintainedSource(file: string): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function compareVersions(a: string, b: string): number {
-  const left = a.split(".").map(Number);
-  const right = b.split(".").map(Number);
-  for (let i = 0; i < 3; i += 1) {
-    const l = left[i] ?? 0;
-    const r = right[i] ?? 0;
-    if (l !== r) {
-      return l < r ? -1 : 1;
-    }
-  }
-  return 0;
 }

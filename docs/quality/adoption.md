@@ -20,14 +20,14 @@ depart from the standard's own values are recorded in [quality-exceptions.md](qu
 
 ## Installed tool versions
 
-| Tool            | Version  | Role                                                 |
-| --------------- | -------- | ---------------------------------------------------- |
-| oxlint          | 1.90.0   | Lint gate, type-aware through the checker below      |
-| oxlint-tsgolint | 7.0.2005 | Type-aware checker                                   |
-| oxfmt           | 0.75.0   | Formatter                                            |
-| oxc-parser      | 0.156.0  | Parser used by the policy verifier                   |
-| typescript      | 7.0.2    | Compiler gate (`tsc --noEmit`)                       |
-| @types/node     | 24.19.2  | Node declarations (renovate pins the major below 25) |
+| Tool        | Version          | Role                                                 |
+| ----------- | ---------------- | ---------------------------------------------------- |
+| oxlint      | 1.94.0           | Lint gate, type-aware through the backend below      |
+| tsrs        | 7.1.0-beta.tsrs2 | Type-aware backend (`tsrs-lint`)                     |
+| oxfmt       | 0.79.0           | Formatter                                            |
+| oxc-parser  | 0.156.0          | Parser used by the policy verifier                   |
+| typescript  | 7.0.2            | Compiler gate (`tsc --noEmit`)                       |
+| @types/node | 24.19.2          | Node declarations (renovate pins the major below 25) |
 
 `scripts/policy-baseline.ts` records these as the qualification floors the verifier checks against.
 
@@ -60,7 +60,7 @@ depart from the standard's own values are recorded in [quality-exceptions.md](qu
 ## Migration status
 
 Complete. Sources, tests, configuration, and documentation satisfy the adopted standard at the revision
-below, with one recorded quality exception (QX-001) and no suppression directives.
+below, with two recorded quality exceptions (QX-001, QX-002) and no suppression directives.
 
 ## Integrated verification
 

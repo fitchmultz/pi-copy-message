@@ -13,7 +13,7 @@ ID and title:
 Rule, option, or threshold; installed tool versions:
   typescript/no-floating-promises with allowForKnownSafeCalls =
   [{from: "package", package: "@types/node", name: [nodeTest, nodeIt, nodeDescribe, nodeSuite]}].
-  oxlint 1.90.0; oxlint-tsgolint 7.0.2005 (type-aware); oxfmt 0.75.0; oxc-parser 0.156.0.
+  oxlint 1.94.0; tsrs 7.1.0-beta.tsrs2 (type-aware); oxfmt 0.79.0; oxc-parser 0.156.0.
 
 Scope: files, authorized operations, origins, or bounded pattern:
   The test-profile override in .oxlintrc.json (**/*.test.*, **/*.spec.*, **/__tests__/**). Authorized
@@ -60,8 +60,64 @@ Retained protection, lost detection, and established assumptions:
   in `npm run lint`.
 
 Review and revisit trigger:
-  Any upgrade of oxlint or oxlint-tsgolint, any new registration form, or the first use of a shorthand
+  Any upgrade of oxlint or tsrs, any new registration form, or the first use of a shorthand
   modifier through a mapped name. Re-measure with npm run quality:probes and update this record.
+```
+
+## QX-002 — prerelease tsrs type-aware backend in place of stable oxlint-tsgolint
+
+```text
+ID and title:
+  QX-002 — adopt prerelease tsrs@7.1.0-beta.tsrs2 as the type-aware backend in place of stable
+  oxlint-tsgolint.
+
+Rule, option, or threshold; installed tool versions:
+  Section 5.1 ("latest stable published releases of Oxlint, oxlint-tsgolint, Oxfmt"). oxlint
+  1.94.0 (2026-11-16T12:26Z); tsrs 7.1.0-beta.tsrs2 (2026-11-16T11:59Z); oxfmt 0.79.0
+  (2026-11-16T12:27Z); oxc-parser 0.156.0; typescript 7.0.2.
+
+Scope: files, authorized operations, origins, or bounded pattern:
+  package.json / package-lock.json devDependencies and scripts/policy-baseline.ts toolFloors
+  (`tsrs: "7.1.0-beta.tsrs2"`), plus type-aware lint execution (oxlint discovers
+  node_modules/.bin/tsrs-lint natively).
+
+Directive selectors/inventory and optional duplication bounds:
+  None (backend package substitution only; directive budget stays zero).
+
+Diagnostic and required contract:
+  Section 5.1 mandates stable published releases, whereas tsrs publishes prereleases only
+  (dist-tags.latest is 0.25.0-ts7.1.0-beta; 7.1.0-beta.tsrs2 is an untagged newer prerelease;
+  stable oxlint-tsgolint 7.0.2007 remains published on npm).
+
+Actual compliant alternative and demonstrated quality cost:
+  Keeping stable oxlint-tsgolint@7.0.2007 preserves Section 5.1 directly. In a matched A/B
+  benchmark on mitchs-m5-mbp (Darwin arm64, oxlint 1.94.0 running
+  `oxlint --deny-warnings --ignore-pattern 'tests/probes/**' .`, median of 3 warm runs each via
+  OXLINT_TSGOLINT_PATH), oxlint-tsgolint@7.0.2007 took 0.16s wall time and 301.3 MiB maximum RSS vs
+  0.10s wall time and 159.7 MiB maximum RSS with tsrs@7.1.0-beta.tsrs2 (1.60x slower, 1.89x /
+  141.6 MiB higher peak RSS; both exited 0).
+
+Chosen adjustment and why its scope is appropriate:
+  Owner-approved substitution of tsrs@7.1.0-beta.tsrs2, enforced by semver.lt/semver.valid in
+  scripts/check-policy.ts so downgrades below 7.1.0-beta.tsrs2 fail policy:check. oxlint 1.94.0
+  discovers tsrs-lint natively and fails closed (exit 1) if absent.
+
+Structural comparison or unsafe-type evidence, where applicable:
+  Not a structural exception. `npm run quality:probes` exercises committed floating-promise probes
+  and 26 generated type-aware and structural controls under tsrs@7.1.0-beta.tsrs2.
+
+Verification commands, relevant tests, and results:
+  `npm run check` (`policy:check`, `format:check`, `lint`, `typecheck`, `test`, `pack:check`),
+  `npm run check:compat` (all except `pack:check`), and `npm run quality:probes` all exit 0 on
+  2026-11-18 with oxlint 1.94.0 + tsrs 7.1.0-beta.tsrs2 + oxfmt 0.79.0.
+
+Retained protection, lost detection, and established assumptions:
+  All type-aware rules, QX-001 probe assertions, and tsc compiler checks remain active; diagnostic
+  parity across the exercised type-aware rules is verified directly by `npm run quality:probes`.
+
+Review and revisit trigger:
+  First stable tsrs release, any oxlint upgrade changing backend discovery, or any type-aware
+  diagnostic discrepancy.
 ```
 
 No other exceptions exist. Structural thresholds, formatter settings, and the baseline rule set are the
