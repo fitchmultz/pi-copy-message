@@ -13,7 +13,7 @@ ID and title:
 Rule, option, or threshold; installed tool versions:
   typescript/no-floating-promises with allowForKnownSafeCalls =
   [{from: "package", package: "@types/node", name: [nodeTest, nodeIt, nodeDescribe, nodeSuite]}].
-  oxlint 1.90.0; oxlint-tsgolint 7.0.2005 (type-aware); oxfmt 0.75.0; oxc-parser 0.156.0.
+  oxlint 1.94.0; tsrs 7.1.0-beta.tsrs2 (type-aware); oxfmt 0.79.0; oxc-parser 0.156.0.
 
 Scope: files, authorized operations, origins, or bounded pattern:
   The test-profile override in .oxlintrc.json (**/*.test.*, **/*.spec.*, **/__tests__/**). Authorized
@@ -60,7 +60,7 @@ Retained protection, lost detection, and established assumptions:
   in `npm run lint`.
 
 Review and revisit trigger:
-  Any upgrade of oxlint or oxlint-tsgolint, any new registration form, or the first use of a shorthand
+  Any upgrade of oxlint or tsrs, any new registration form, or the first use of a shorthand
   modifier through a mapped name. Re-measure with npm run quality:probes and update this record.
 ```
 

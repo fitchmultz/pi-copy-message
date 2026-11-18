@@ -90,13 +90,13 @@ Set repository variable `NPM_RELEASE_ENABLED` to anything other than `true` to s
 
 The repository follows the Strict Oxlint and Oxfmt Engineering Standard v5.1.2; the adopted copy in [`docs/quality/strict-oxlint-oxfmt-5.1.2.md`](quality/strict-oxlint-oxfmt-5.1.2.md) is the authoritative statement.
 
-| Tool                        | Floor           | Role                                                                            |
-| --------------------------- | --------------- | ------------------------------------------------------------------------------- |
-| `oxlint`                    | 1.90.0          | Lints every maintained source file with type-aware checking enabled             |
-| `oxlint-tsgolint`           | 7.0.2005        | Supplies type information to the checker                                        |
-| `oxfmt`                     | 0.75.0          | Formats every maintained source file; `npm run format:check` must stay clean    |
-| `oxc-parser`                | 0.156.0         | Powers the policy verifier                                                      |
-| TypeScript compiler options | `tsconfig.json` | The checker reads the project's compiler options; the verifier reports coverage |
+| Tool                        | Floor            | Role                                                                            |
+| --------------------------- | ---------------- | ------------------------------------------------------------------------------- |
+| `oxlint`                    | 1.94.0           | Lints every maintained source file with type-aware checking enabled             |
+| `tsrs`                      | 7.1.0-beta.tsrs2 | Supplies type-aware linting (`tsrs-lint`)                                       |
+| `oxfmt`                     | 0.79.0           | Formats every maintained source file; `npm run format:check` must stay clean    |
+| `oxc-parser`                | 0.156.0          | Powers the policy verifier                                                      |
+| TypeScript compiler options | `tsconfig.json`  | The checker reads the project's compiler options; the verifier reports coverage |
 
 `.oxlintrc.json` is the recorded policy baseline. Changing a rule, option, override profile, or the
 test-profile registration mapping is a policy decision; `npm run policy:check` fails when the
