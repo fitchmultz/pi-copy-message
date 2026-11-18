@@ -60,7 +60,7 @@ depart from the standard's own values are recorded in [quality-exceptions.md](qu
 ## Migration status
 
 Complete. Sources, tests, configuration, and documentation satisfy the adopted standard at the revision
-below, with one recorded quality exception (QX-001) and no suppression directives.
+below, with two recorded quality exceptions (QX-001, QX-002) and no suppression directives.
 
 ## Integrated verification
 

@@ -7,7 +7,7 @@
  */
 export const sourceProfiles = {
   standard: "Strict Oxlint and Oxfmt Engineering Standard v5.1.2",
-  /** Installed toolchain, verified current against the public registry on 2026-11-01 (section 5.1). */
+  /** Installed toolchain, verified current against the public registry on 2026-11-18 (`tsrs` prerelease under QX-002). */
   toolFloors: {
     oxlint: "1.94.0",
     tsrs: "7.1.0-beta.tsrs2",

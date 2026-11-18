@@ -500,6 +500,21 @@ nodeTest("gate-level controls fail and pass their real gates", () => {
     ]);
     assert.notEqual(integrity.code, 0, "a representative policy downgrade must fail verification");
     assert.match(integrity.output, /baseline/);
+
+    const pkgRaw: unknown = JSON.parse(readFileSync(join(repo, "package.json"), "utf8"));
+    const downgradedPkg = structuredClone(isRecord(pkgRaw) ? pkgRaw : {});
+    if (isRecord(downgradedPkg["devDependencies"])) {
+      downgradedPkg["devDependencies"]["tsrs"] = "7.1.0-beta.tsrs1";
+    }
+    writeFileSync(join(controlDir, "downgraded-package.json"), JSON.stringify(downgradedPkg));
+    const tsrsDowngrade = gate([
+      process.execPath,
+      "scripts/check-policy.ts",
+      "--package",
+      join("tests", "probes", "gate-controls", "downgraded-package.json"),
+    ]);
+    assert.notEqual(tsrsDowngrade.code, 0, "a below-floor tsrs prerelease must fail verification");
+    assert.match(tsrsDowngrade.output, /tsrs 7\.1\.0-beta\.tsrs1 is below/);
   } finally {
     rmSync(orphanDir, { recursive: true, force: true });
     if (!toolsExisted) {
