@@ -177,7 +177,7 @@ async function copyMessageCommand(
   const messages =
     parsed.selector === "latest" ? collectProjectedMessages(ctx) : collectCopyableMessages(ctx);
   if (messages.length === 0) {
-    notify("No copyable messages found in the current branch", "error");
+    notify("No copyable messages found in the current branch", "warning");
     return;
   }
   if (parsed.selector !== undefined) {
@@ -186,8 +186,8 @@ async function copyMessageCommand(
   }
   if (ctx.mode !== "tui") {
     notify(
-      "/copy-message requires interactive TUI mode unless you pass latest/last/newest or a message number",
-      "error",
+      "/copy-message requires interactive mode unless you pass latest/last/newest or a message number",
+      "warning",
     );
     return;
   }

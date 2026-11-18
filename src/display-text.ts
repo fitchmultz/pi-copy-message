@@ -22,7 +22,9 @@ function truncateGraphemes(text: string, max: number): string {
   return text;
 }
 export function safeDisplayText(text: string): string {
-  return stripTerminalSequences(text).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, "");
+  return stripTerminalSequences(text)
+    .replace(/\r\n?/gu, "\n")
+    .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/gu, "");
 }
 export function compactPreview(text: string, max = 96): string {
   const preview = safeDisplayText(text).replace(/\s+/gu, " ").trim();

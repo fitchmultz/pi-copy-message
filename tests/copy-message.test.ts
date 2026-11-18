@@ -13,6 +13,7 @@ import {
 } from "@earendil-works/pi-tui";
 
 import extension from "../extensions/copy-message.ts";
+import { safeDisplayText } from "../src/display-text.ts";
 import type { CopyMessageTheme, PickerKeybindings } from "../src/picker-view.ts";
 import {
   collectCopyableMessages,
@@ -78,6 +79,15 @@ nodeTest("previews strip terminal control sequences", () => {
   assert.doesNotMatch(renderedPeek, /\x1b|aW5qZWN0ZWQ=/);
   assert.match(renderedPeek, /Before after/);
 
+  const crText = "First line\r\nSecond\rOverwrite\tkept";
+  const crState = new CopyMessagePickerState([copyableMessage("a2", "assistant", crText, 1)]);
+  assert.equal(crState.selectedCopyText(), crText);
+  assert.equal(safeDisplayText("a\rb"), "a\nb");
+  crState.handleInput("\t");
+  const crPeekLines = crState.render(120, plainTheme);
+  assert.ok(crPeekLines.every((line) => !line.includes("\r")));
+  assert.match(crPeekLines.join("\n"), /  First line\n  Second\n  Overwrite\tkept/);
+
   const unknownRole = `unrecognized\r${clipboardWrite}`;
   const messages = collectCopyableMessages({
     sessionManager: {
@@ -109,7 +119,7 @@ nodeTest("picker previews retain full-split output at grapheme boundaries", () =
       const text = pattern.repeat(length);
       // The old full-split rule is the output oracle, after existing sanitization.
       const compact = text
-        .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, "")
+        .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "")
         .replace(/\s+/gu, " ")
         .trim();
       const parts = Array.from(segmenter.segment(compact), (part) => part.segment);
@@ -1003,4 +1013,47 @@ nodeTest("picker disposal defers host completion and rejects reentrant input", a
     1,
     "Repeated disposal and late confirm complete cancellation only once",
   );
+});
+
+nodeTest("copy-message warns when the branch is empty or mode is non-interactive", async () => {
+  const notices: Array<{ message: string; type?: string | undefined }> = [];
+  const createCtx = (mode: string, branch: unknown[]): ExtensionCommandContext => {
+    const candidate: unknown = {
+      mode,
+      sessionManager: {
+        getBranch: () => branch,
+        buildSessionProjection: () => ({ entries: [] }),
+      },
+      ui: {
+        notify: (message: string, type?: string) => {
+          notices.push({ message, type });
+        },
+        custom: () => assert.fail("Picker UI must not open when command returns early"),
+      },
+    };
+    assert.ok(isCommandContext(candidate));
+    return candidate;
+  };
+
+  const handler = captureRegisteredCommands().get("copy-message")?.handler;
+  assert.ok(handler !== undefined);
+
+  await handler("", createCtx("tui", []));
+  await handler("latest", createCtx("tui", []));
+  await handler(
+    "",
+    createCtx("print", [
+      { type: "message", id: "u0", message: { role: "user", content: "hello" } },
+    ]),
+  );
+
+  assert.deepEqual(notices, [
+    { message: "No copyable messages found in the current branch", type: "warning" },
+    { message: "No copyable messages found in the current branch", type: "warning" },
+    {
+      message:
+        "/copy-message requires interactive mode unless you pass latest/last/newest or a message number",
+      type: "warning",
+    },
+  ]);
 });
