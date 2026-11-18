@@ -90,25 +90,30 @@ Diagnostic and required contract:
   stable oxlint-tsgolint 7.0.2007 remains published on npm).
 
 Actual compliant alternative and demonstrated quality cost:
-  Keeping stable oxlint-tsgolint@7.0.2007 preserves Section 5.1 directly at ~2.9x–5.3x slower
-  type-aware lint runtime and ~3x–6x higher peak memory across ecosystem repos.
+  Keeping stable oxlint-tsgolint@7.0.2007 preserves Section 5.1 directly. In a matched A/B
+  benchmark on mitchs-m5-mbp (Darwin arm64, oxlint 1.94.0 running
+  `oxlint --deny-warnings --ignore-pattern 'tests/probes/**' .`, median of 3 warm runs each via
+  OXLINT_TSGOLINT_PATH), oxlint-tsgolint@7.0.2007 took 0.16s wall time and 301.3 MiB maximum RSS vs
+  0.10s wall time and 159.7 MiB maximum RSS with tsrs@7.1.0-beta.tsrs2 (1.60x slower, 1.89x /
+  141.6 MiB higher peak RSS; both exited 0).
 
 Chosen adjustment and why its scope is appropriate:
-  Owner-approved substitution of tsrs@7.1.0-beta.tsrs2, enforced by SemVer prerelease ordering in
+  Owner-approved substitution of tsrs@7.1.0-beta.tsrs2, enforced by semver.lt/semver.valid in
   scripts/check-policy.ts so downgrades below 7.1.0-beta.tsrs2 fail policy:check. oxlint 1.94.0
-  discovers tsrs-lint natively and fails closed if absent.
+  discovers tsrs-lint natively and fails closed (exit 1) if absent.
 
 Structural comparison or unsafe-type evidence, where applicable:
-  Not a structural exception.
+  Not a structural exception. `npm run quality:probes` exercises committed floating-promise probes
+  and 26 generated type-aware and structural controls under tsrs@7.1.0-beta.tsrs2.
 
 Verification commands, relevant tests, and results:
-  npm run check:compat (policy:check, format:check, lint, typecheck, test, quality:probes,
-  pack:check) passes on 2026-11-18 with oxlint 1.94.0 + tsrs 7.1.0-beta.tsrs2; quality-harness
-  proves policy:check rejects tsrs 7.1.0-beta.tsrs1.
+  `npm run check` (`policy:check`, `format:check`, `lint`, `typecheck`, `test`, `pack:check`),
+  `npm run check:compat` (all except `pack:check`), and `npm run quality:probes` all exit 0 on
+  2026-11-18 with oxlint 1.94.0 + tsrs 7.1.0-beta.tsrs2 + oxfmt 0.79.0.
 
 Retained protection, lost detection, and established assumptions:
-  All type-aware rules, QX-001 probe assertions, and tsc compiler checks remain active; assumes
-  tsrs@7.1.0-beta.tsrs2 keeps diagnostic parity with oxlint-tsgolint.
+  All type-aware rules, QX-001 probe assertions, and tsc compiler checks remain active; diagnostic
+  parity across the exercised type-aware rules is verified directly by `npm run quality:probes`.
 
 Review and revisit trigger:
   First stable tsrs release, any oxlint upgrade changing backend discovery, or any type-aware

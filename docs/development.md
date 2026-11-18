@@ -14,7 +14,7 @@ pi install https://github.com/fitchmultz/pi-copy-message
 
 The lint and formatter configuration comes from the adopted standard copy in
 [`docs/quality/strict-oxlint-oxfmt-5.1.2.md`](quality/strict-oxlint-oxfmt-5.1.2.md); the adoption record
-and the single recorded quality exception are in [`docs/quality/adoption.md`](quality/adoption.md) and
+and the recorded quality exceptions (QX-001, QX-002) are in [`docs/quality/adoption.md`](quality/adoption.md) and
 [`docs/quality/quality-exceptions.md`](quality/quality-exceptions.md). Keep the two configuration files
 equal to the standard's blocks plus what those records authorize.
 

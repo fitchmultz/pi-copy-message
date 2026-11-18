@@ -7,7 +7,7 @@
  */
 export const sourceProfiles = {
   standard: "Strict Oxlint and Oxfmt Engineering Standard v5.1.2",
-  /** Installed toolchain, verified current against the public registry on 2026-11-18 (`tsrs` prerelease under QX-002). */
+  /** Tool floors: oxlint@1.94.0 and oxfmt@0.79.0 verified current on 2026-11-18; tsrs@7.1.0-beta.tsrs2 is a prerelease backend under QX-002; oxc-parser@0.156.0 is retained from adoption. */
   toolFloors: {
     oxlint: "1.94.0",
     tsrs: "7.1.0-beta.tsrs2",
