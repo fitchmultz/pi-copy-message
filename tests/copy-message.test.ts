@@ -13,6 +13,7 @@ import {
 } from "@earendil-works/pi-tui";
 
 import extension from "../extensions/copy-message.ts";
+import { safeDisplayText } from "../src/display-text.ts";
 import type { CopyMessageTheme, PickerKeybindings } from "../src/picker-view.ts";
 import {
   collectCopyableMessages,
@@ -81,10 +82,11 @@ nodeTest("previews strip terminal control sequences", () => {
   const crText = "First line\r\nSecond\rOverwrite\tkept";
   const crState = new CopyMessagePickerState([copyableMessage("a2", "assistant", crText, 1)]);
   assert.equal(crState.selectedCopyText(), crText);
+  assert.equal(safeDisplayText("a\rb"), "a\nb");
   crState.handleInput("\t");
   const crPeekLines = crState.render(120, plainTheme);
   assert.ok(crPeekLines.every((line) => !line.includes("\r")));
-  assert.match(crPeekLines.join("\n"), /  First line\n  SecondOverwrite\tkept/);
+  assert.match(crPeekLines.join("\n"), /  First line\n  Second\n  Overwrite\tkept/);
 
   const unknownRole = `unrecognized\r${clipboardWrite}`;
   const messages = collectCopyableMessages({
