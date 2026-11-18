@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 4.0.15 - 2026-11-18
+
+<!-- npm-release:unreleased:start -->
+<!-- npm-release:unreleased:end -->
+
+- ci: release through direct signed version commits (PEA-211) (#75) ([8cbaa61](https://github.com/fitchmultz/pi-copy-message/commit/8cbaa61c38610cb459db68f448f88b2df4019d13))
+
+### What's Changed
+
+- ci: release through direct signed version commits (PEA-211) (1/1) by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/75
+- fix(ui,ci): strip CR in display text, soften notices, and use shared CI by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/76
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.14...v4.0.15
+
 ## 4.0.14 - 2026-11-14
 
 <!-- npm-release:unreleased:start -->
