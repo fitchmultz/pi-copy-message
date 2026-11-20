@@ -612,7 +612,7 @@ nodeTest(
           await activeContext().reload();
           await runtime.session.prompt("/qa-context");
           await rendered();
-          // Reload disposes custom UI before session_shutdown on the maintained fork.
+          // Reload disposes custom UI before session_shutdown.
           // Assert settlement before awaiting: regressions fail here, not at the parent deadline.
           assert.equal(settled, true, "disposed picker command must settle after reload");
           await picker;
@@ -643,17 +643,6 @@ nodeTest(
             });
             return { closed, complete: () => complete(null) };
           };
-          // Compare with the host's own sibling-only behavior. Official 1.3.0 does not
-          // dispose inline custom UI at reload; the fork's dialog stack does.
-          const baseline = sibling();
-          await rendered();
-          await activeContext().reload();
-          await runtime.session.prompt("/qa-context");
-          const expectedDisposals = disposals;
-          baseline.complete();
-          await baseline.closed;
-
-          const before = disposals;
           const beforeWrites = writes().length;
           const picker = runtime.session.prompt("/copy-message");
           let settled = false;
@@ -670,11 +659,7 @@ nodeTest(
           await activeContext().reload();
           await runtime.session.prompt("/qa-context");
           await rendered();
-          assert.equal(
-            disposals - before,
-            expectedDisposals,
-            "Picker completion must not skip a sibling's native disposal",
-          );
+          assert.equal(disposals, 1, "Picker completion must not skip a sibling's native disposal");
           assert.equal(settled, true);
           await picker;
           peer.complete();
