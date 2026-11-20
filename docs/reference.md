@@ -75,7 +75,9 @@ The picker coalesces legacy in-progress assistant snapshots within their context
 
 Previews and copy notifications remove terminal control characters for safe display. Copied text stays raw, preserving stored text and newlines. Image and other non-text content blocks are not copied.
 
-The extension keeps Pi's native/platform clipboard writes and OSC 52 fallback. It reports "Copied" only after reading back matching local clipboard text. The success notification includes the role and a short preview. Empty or mismatched readback warns; rejected writes report an error. Remote terminal delivery via OSC 52 cannot be verified, even when the remote machine's local clipboard matches.
+The extension keeps Pi's native/platform clipboard writes and OSC 52 fallback. It reports "Copied" only after reading back matching local clipboard text. The success notification includes the role and a short preview. Empty or mismatched readback warns; rejected writes report an error.
+
+Over SSH or mosh, "Copied" confirms the clipboard of the machine that runs Pi. Pi also sends the text to the terminal with OSC 52. The extension cannot verify that the terminal accepted it, so the notification is the same as in a local session.
 
 Native clipboard reads are preferred where available on Apple Silicon macOS. Platform command readers are bounded by a three-second timeout and preserve exact text, including newlines. Readers include `pbpaste`, `termux-clipboard-get`, `wl-paste`, `xclip`, and `xsel`, selected for the platform and environment. The extension does not replace Pi's working write fallback chain.
 

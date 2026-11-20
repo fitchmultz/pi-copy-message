@@ -376,7 +376,7 @@ nodeTest(
       );
 
       await t.test(
-        "false writes, empty/unavailable/error reads and remote delivery never claim verified success",
+        "false writes and empty/unavailable/error reads never claim verified success",
         async () => {
           for (const value of [
             { write: "false", text: "other" },
@@ -392,12 +392,22 @@ nodeTest(
           state({ write: "throw" });
           await runtime.session.prompt("/copy-user");
           assert.equal(notes.at(-1)?.type, "error");
+        },
+      );
+
+      await t.test(
+        "a verified copy reports the copied message when SSH_CONNECTION is set",
+        async () => {
           process.env.SSH_CONNECTION = "fixture";
-          state({});
-          await runtime.session.prompt("/copy-user");
-          assert.equal(notes.at(-1)?.type, "warning");
-          assert.match(lastNote().text, /remote terminal.*unverified/);
-          delete process.env.SSH_CONNECTION;
+          try {
+            state({});
+            await runtime.session.prompt("/copy-user");
+            assert.equal(clipboard().text, "Stored user 界🙂\nsecond line\n");
+            assert.equal(lastNote().type, "info");
+            assert.match(lastNote().text, /^Copied user message: /);
+          } finally {
+            delete process.env.SSH_CONNECTION;
+          }
         },
       );
 

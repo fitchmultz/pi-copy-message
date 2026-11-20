@@ -61,7 +61,7 @@ On Termux, unavailable readback produces "Sent … to terminal clipboard; paste 
 
 Empty or mismatched readback still produces a warning. Unavailable readback on other platforms also warns. A failed write produces an error.
 
-The extension cannot verify remote terminal delivery. Paste into a local editor to check delivery.
+Over SSH or mosh, “Copied” confirms the clipboard of the machine that runs Pi. Pi also sends the text to your terminal with OSC 52, and the extension cannot verify that step. Paste into a local editor to check delivery.
 
 Restart Pi after you change dependencies or the Pi runtime.
 

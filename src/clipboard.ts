@@ -97,14 +97,6 @@ async function readCopiedText(expected: string): Promise<string | null | undefin
   return undefined;
 }
 
-function remoteSession(): boolean {
-  return (
-    process.env.SSH_CONNECTION !== undefined ||
-    process.env.SSH_CLIENT !== undefined ||
-    process.env.MOSH_CONNECTION !== undefined
-  );
-}
-
 export async function copySelectedMessage(
   notify: Notify,
   selected: CopyableMessage,
@@ -120,11 +112,6 @@ export async function copySelectedMessage(
       );
     } else if (actual !== text) {
       notify("Clipboard command completed, but delivery could not be verified.", "warning");
-    } else if (remoteSession()) {
-      notify(
-        "Local clipboard verified; remote terminal clipboard delivery is unverified.",
-        "warning",
-      );
     } else {
       notify(copyNotificationText(selected), "info");
     }
