@@ -2,7 +2,23 @@
 
 ## Unreleased
 
+## 4.0.16 - 2026-11-20
+
+<!-- npm-release:unreleased:start -->
+
 - Report the copied message after a verified copy over SSH or mosh. The extension no longer replaces that notification with a warning that terminal delivery is unverified, which also appeared in local tmux panes that inherited `SSH_CONNECTION`.
+
+<!-- npm-release:unreleased:end -->
+
+- chore(lint): switch from oxlint-tsgolint to tsrs (#77) ([3a538df](https://github.com/fitchmultz/pi-copy-message/commit/3a538dfa31112927c93dfcaeffc56db9cd477852))
+
+### What's Changed
+
+- chore(lint): switch from oxlint-tsgolint to tsrs by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/77
+- chore: bump Pi floor to 1.6.0 and remove pre-1.6.0 reload shim (PEA-222) by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/78
+- fix(ui): report the copied message after a verified copy over SSH (PEA-224) by @fitchmultz in https://github.com/fitchmultz/pi-copy-message/pull/79
+
+**Full Changelog**: https://github.com/fitchmultz/pi-copy-message/compare/v4.0.15...v4.0.16
 
 ## 4.0.15 - 2026-11-18
 
