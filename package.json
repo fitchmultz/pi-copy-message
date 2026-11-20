@@ -54,8 +54,8 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "1.5.2",
-    "@earendil-works/pi-tui": "1.5.2",
+    "@earendil-works/pi-coding-agent": "1.6.0",
+    "@earendil-works/pi-tui": "1.6.0",
     "@types/node": "24.19.2",
     "@types/semver": "7.8.0",
     "oxc-parser": "0.156.0",

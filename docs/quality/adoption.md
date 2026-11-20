@@ -15,8 +15,8 @@ depart from the standard's own values are recorded in [quality-exceptions.md](qu
 
 - Node.js `>=24.22.3 <25 || >=26.13.1` (`.nvmrc` pins 24.22.3); `package.json` pins `npm@12.2.1` as the package manager.
 - Install uses the public npm registry only, and the lockfile reflects it.
-- Pi runtime targets: the official `pi-coding-agent` 1.4.0 release and the fork release this repository is
-  developed against; both are dev dependencies at the versions listed below.
+- Pi runtime targets: official `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` 1.6.0
+  (dev dependencies) and the maintained Pi fork (`main`).
 
 ## Installed tool versions
 
