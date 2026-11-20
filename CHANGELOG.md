@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Report the copied message after a verified copy over SSH or mosh. The extension no longer replaces that notification with a warning that terminal delivery is unverified, which also appeared in local tmux panes that inherited `SSH_CONNECTION`.
+
 ## 4.0.15 - 2026-11-18
 
 <!-- npm-release:unreleased:start -->

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
   <title id="title">Copy a message from Pi</title>
-  <desc id="desc">Open the copy-message picker, search session history, press Enter or click to copy raw text, and let Pi write to the clipboard. Local readback checks delivery; unavailable or remote delivery produces a warning.</desc>
+  <desc id="desc">Open the copy-message picker, search session history, press Enter or click to copy raw text, and let Pi write to the clipboard. Local readback checks delivery; unavailable or mismatched readback produces a warning.</desc>
   <defs>
     <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
       <stop stop-color="#060A12"/><stop offset="0.52" stop-color="#0B1120"/><stop offset="1" stop-color="#080C16"/>
@@ -93,5 +93,5 @@
       </g>
     </g>
   </g>
-  <text x="64" y="486" class="sans" font-size="24" fill="#91A0B8">Unavailable or remote clipboard delivery produces a warning.</text>
+  <text x="64" y="486" class="sans" font-size="24" fill="#91A0B8">Unavailable or mismatched clipboard readback produces a warning.</text>
 </svg>
